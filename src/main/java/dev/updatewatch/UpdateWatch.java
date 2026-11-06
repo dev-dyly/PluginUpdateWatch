@@ -252,7 +252,68 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
             tell(sender, "Removed " + count + " stale config entry/entries. Backup: " + backup + ". A fresh scan will run shortly.");
         } catch (Exception e) { cleanupPreview = null; cleanupOwner = null; tell(sender, "Cleanup stopped: " + UpdateCheckService.message(e)); }
     }
-    private void download(CommandSender sender, String name) {
+    /** Each bulk request reports a single summary after its last queued download finishes. */
+    private final class BulkProgress {
+        private final CommandSender sender;
+        private final int total;
+        private int completed;
+        private int saved;
+        private int unchanged;
+        private int failed;
+
+        BulkProgress(CommandSender sender, int total) {
+            this.sender = sender;
+            this.total = total;
+        }
+
+        void completed(Failure failure) {
+            completed++;
+            if (failure == null) saved++;
+            else if (failure.noUpdate()) unchanged++;
+            else failed++;
+            if (completed == total)
+                tell(sender, "downloadall complete: " + saved + " saved, " + unchanged
+                        + " already installed/not newer, " + failed + " failed. Review plugins/PluginUpdateWatch/downloads/ before installing.");
+        }
+    }
+
+    private void downloadAll(CommandSender sender) {
+        if (checkState.running()) {
+            tell(sender, "An update check is running. Retry /pu downloadall when it finishes.");
+            return;
+        }
+        if (lastCheckFailure != null) {
+            tell(sender, "[WARNING] The last check failed. Run /pu check successfully before /pu downloadall.");
+            return;
+        }
+        if (lastReport == null) {
+            tell(sender, "No completed update check yet. Run /pu scan or /pu check first.");
+            return;
+        }
+        var plan = BulkDownloadPlan.plan(results.values(), this::checksumRequired, downloads);
+        if (plan.confirmedUpdates() == 0) {
+            tell(sender, "No confirmed updates in the last completed check. Run /pu check to refresh.");
+            return;
+        }
+        if (plan.manual() > 0)
+            tell(sender, "[WARNING] " + plan.manual() + " update(s) require a manual download from their release pages. Use /pu list.");
+        if (plan.checksumBlocked() > 0)
+            tell(sender, "[WARNING] " + plan.checksumBlocked() + " update(s) skipped: checksum required but unavailable. Use /pu list for release pages and review downloads.require-checksum.");
+        if (plan.alreadyRunning() > 0)
+            tell(sender, plan.alreadyRunning() + " download(s) already running; not queued again.");
+        if (plan.ready().isEmpty()) {
+            tell(sender, "No eligible downloads to queue from " + plan.confirmedUpdates() + " confirmed update(s).");
+            return;
+        }
+        tell(sender, "Queueing " + plan.ready().size() + " of " + plan.confirmedUpdates()
+                + " confirmed update(s) from the last check. Downloads are saved for manual installation, not applied automatically.");
+        var progress = new BulkProgress(sender, plan.ready().size());
+        for (Result r : plan.ready()) download(sender, r.source().name(), progress);
+    }
+
+    private void download(CommandSender sender, String name) { download(sender, name, null); }
+
+    private void download(CommandSender sender, String name, BulkProgress progress) {
         boolean console = console(sender);
         String key = name.toLowerCase(Locale.ROOT);
         Result r = results.get(key);
@@ -266,13 +327,18 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
                     + ". Help: " + Troubleshooting.link("checksums");
             tell(sender, message); if (!console) getLogger().warning(message); return;
         }
-        if (!downloads.add(key)) { tell(sender, "That download is already running."); return; }
-        if (console) tell(sender, ConsoleReport.downloadStart(r));
+        if (!downloads.add(key)) {
+            tell(sender, "That download is already running.");
+            if (progress != null) progress.completed(Failure.classify(new IllegalStateException("Download already queued")));
+            return;
+        }
+        if (console && progress == null) tell(sender, ConsoleReport.downloadStart(r));
         if (!console) {
             if (r.status() != Versions.Status.UPDATE)
                 tell(sender, "[WARNING] No newer version has been confirmed. This explicitly requested download is for inspection, not a verified upgrade.");
-            tell(sender, "Downloading " + r.source().name() + " " + r.release().version() + "...");
-            tell(sender, r.source().name() + ": " + r.release().type().message());
+            if (progress == null) tell(sender, "Downloading " + r.source().name() + " " + r.release().version() + "...");
+            if (progress == null || r.release().type().warning)
+                tell(sender, r.source().name() + ": " + r.release().type().message());
             if (r.release().compatibilityWarning() != null) {
                 tell(sender, r.release().compatibilityWarning());
                 getLogger().warning(r.source().name() + ": " + r.release().compatibilityWarning());
@@ -317,6 +383,7 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
                     results = Collections.unmodifiableMap(updated);
                 }
                 downloads.remove(key); tell(sender, finalMessage);
+                if (progress != null) progress.completed(finalOutcome);
                 if (!console) {
                     if (finalMessage.contains("[ERROR]") || finalMessage.contains("[WARNING]")) getLogger().warning(finalMessage);
                     else getLogger().info(finalMessage);
@@ -336,6 +403,7 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
             case "check" -> check(sender, false);
             case "scan" -> check(sender, true);
             case "download" -> { if (args.length == 2) download(sender, args[1]); else tell(sender, "Usage: /pu download <plugin>"); }
+            case "downloadall" -> { if (args.length == 1) downloadAll(sender); else tell(sender, "Usage: /pu downloadall"); }
             case "cleanup" -> {
                 if (args.length == 1 || (args.length == 2 && args[1].equalsIgnoreCase("confirm"))) cleanup(sender, args.length == 2);
                 else tell(sender, "Usage: /pu cleanup [confirm]");
@@ -351,13 +419,13 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
                     configureMetrics(); schedule(); tell(sender, "Configuration reloaded. Automatic scan will run shortly.");
                 } catch (Exception e) { tell(sender, "Reload rejected; previous settings retained. " + Failure.classify(e).describe(null)); }
             }
-            default -> tell(sender, "Usage: /pu [list|scan|check|download <plugin>|cleanup [confirm]|stats|reload]");
+            default -> tell(sender, "Usage: /pu [list|scan|check|download <plugin>|downloadall|cleanup [confirm]|stats|reload]");
         }
         return true;
     }
     @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (!sender.hasPermission("pluginupdatewatch.admin")) return List.of();
-        List<String> choices = args.length == 1 ? List.of("list", "scan", "check", "download", "cleanup", "stats", "reload")
+        List<String> choices = args.length == 1 ? List.of("list", "scan", "check", "download", "downloadall", "cleanup", "stats", "reload")
                 : args.length == 2 && args[0].equalsIgnoreCase("cleanup") ? List.of("confirm")
                 : args.length == 2 && args[0].equalsIgnoreCase("list") ? List.of("all")
                 : args.length == 2 && args[0].equalsIgnoreCase("download") ? results.values().stream()

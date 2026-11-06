@@ -39,6 +39,7 @@ Supported update sources:
 - Version comparison and download freshness checks to reduce false alerts
 - Manual source configuration using only a JAR filename and source link
 - Config cleanup with backups
+- Single-plugin and bulk downloads with /pu downloadall
 - Download checksum verification
 - Download archive validation
 - Admin join notifications

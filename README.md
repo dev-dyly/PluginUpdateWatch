@@ -74,6 +74,7 @@ The confirmation rechecks the config and missing-file list. If either changed, r
 | `/pu check` | Check known sources without retrying automatic discovery |
 | `/pu list` | Show cached updates and unresolved/configuration problems |
 | `/pu download <plugin>` | Download an available update; tab completion supplies the plugin name |
+| `/pu downloadall` | Queue every confirmed, downloadable update from the last successful check; report skipped and failed downloads |
 | `/pu cleanup` | Preview config entries whose JAR files are missing |
 | `/pu cleanup confirm` | Back up config and remove exactly the previewed missing-file entries |
 | `/pu reload` | Reload config and schedule a new scan/check |
@@ -86,6 +87,8 @@ Permission: `pluginupdatewatch.admin`, granted to operators by default. Console 
 The 1.4 release normalizes Paper/Spigot/Bukkit wrappers and numbered-build labels such as Plan's `5.8 build 3638` and `5.8+build.3638`. These identify the same version. Only a demonstrably newer version is confirmed as an update; formatting differences alone do not trigger a download offer.
 
 Before saving, downloads are compared with an unambiguously matched original installed JAR when available. Identical bytes are rejected. Numerically older files, and same/older descriptor versions without a matched original, are flagged for inspection rather than automatic install.
+
+Run `/pu check` (or `/pu scan`) before `/pu downloadall` to refresh cached results. The bulk command queues **confirmed newer versions only**; unknown/different version labels and failed checks are excluded. Items without direct downloads, blocked by checksum policy, or already downloading are reported as skipped. Each file uses the existing checksum, HTTPS, plugin identity, JAR structure and version-freshness validation. Downloads are processed one by one, with individual results and a final saved/unchanged/failed summary. **No running plugin JAR is replaced automatically.**
 
 Downloads go to `plugins/PluginUpdateWatch/downloads/`. GitHub and Modrinth downloads keep the exact safe publisher asset filename. When no filename is supplied (normally Spigot), the fallback is `<PluginName>.jar`.
 

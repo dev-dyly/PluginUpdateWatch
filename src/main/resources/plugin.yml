@@ -11,7 +11,7 @@ commands:
     aliases: [pu]
     description: Check and download plugin updates
     permission: pluginupdatewatch.admin
-    usage: /pu [list|scan|check|download <plugin>|cleanup [confirm]|stats|reload]
+    usage: /pu [list|scan|check|download <plugin>|downloadall|cleanup [confirm]|stats|reload]
 permissions:
   pluginupdatewatch.admin:
     default: op

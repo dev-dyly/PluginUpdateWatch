@@ -1,9 +1,9 @@
 site_name: PluginUpdateWatch
 site_description: Documentation for the PluginUpdateWatch Minecraft Paper plugin
-site_url: https://dylantanderson92-lang.github.io/PluginUpdateWatch/
+site_url: https://dev-dyly.github.io/PluginUpdateWatch/
 
-repo_name: dylantanderson92-lang/PluginUpdateWatch
-repo_url: https://github.com/dylantanderson92-lang/PluginUpdateWatch
+repo_name: dev-dyly/PluginUpdateWatch
+repo_url: https://github.com/dev-dyly/PluginUpdateWatch
 edit_uri: edit/main/docs/
 
 theme:

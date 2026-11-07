@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.5.0 — Bulk update downloads
+
+[Download v1.5.0](https://github.com/dev-dyly/PluginUpdateWatch/releases/tag/v1.5.0) · [DownloadAll guide](downloads.md#download-all-confirmed-updates)
+
+- Add `/pu downloadall` to queue all confirmed, eligible plugin updates from the last successful scan or check.
+- Reuse single-plugin safeguards: HTTPS, checksum policy, archive and plugin identity validation, filename restrictions, and freshness checks.
+- Skip manual-only releases, checksum-blocked items, already-running downloads and unconfirmed update labels.
+- Report each download and a final saved, already-installed/not-newer and failed summary; skipped items are reported separately.
+- Save files to `plugins/PluginUpdateWatch/downloads/`; **no automatic installation**.
+- Existing configurations remain supported without migration; targets Paper 1.21.11–26.3 with Java 21 bytecode.
+- **Validation:** Java 21 and Java 25 CI passed. Live Paper test: five updates found, one checksum-verified ViaVersion JAR saved, two manual-only and two checksum-blocked skipped; zero failures.
+
+
 ## 1.4.1
 
 [Release and downloads](https://github.com/dylantanderson92-lang/PluginUpdateWatch/releases/tag/v1.4.1). Existing configurations remain supported. The server owner confirmed the tested preview works on live Paper 26.3.

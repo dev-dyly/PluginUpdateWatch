@@ -54,11 +54,22 @@ Then run:
 /pu reload
 ```
 
-## 4. Download an available update
+## 4. Download available updates
+
+For a single plugin:
 
 ```text
 /pu download <plugin>
 ```
+
+To download **all confirmed, eligible updates** in v1.5.0:
+
+```text
+/pu check
+/pu downloadall
+```
+
+Bulk downloads skip manual-only, checksum-blocked, already-running, and unconfirmed updates. See the [DownloadAll guide](downloads.md#download-all-confirmed-updates).
 
 Downloaded files are saved to:
 

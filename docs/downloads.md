@@ -1,10 +1,59 @@
 # Downloading Updates
 
-Use:
+PluginUpdateWatch **downloads updates for manual installation**. Download one plugin or queue all confirmed, eligible updates after a successful check.
+
+## Download one plugin
 
 ```text
 /pu download <plugin>
 ```
+
+A single-plugin download may also be offered for inspection if a newer version cannot be confirmed. Verify the publisher's release notes before installing.
+
+## Download all confirmed updates
+
+**New in v1.5.0:**
+
+```text
+/pu scan
+/pu downloadall
+```
+
+Or run `/pu check` instead of `/pu scan` when the source links are already configured.
+
+`/pu downloadall` uses the **last successful** update check. It queues **only confirmed newer versions** with direct download URLs, processing eligible downloads sequentially on the existing background I/O worker. Unknown or unconfirmed version labels and errored provider results are excluded.
+
+The command skips and reports:
+
+- updates with no direct download link (manual download required);
+- releases without a checksum when the configured checksum policy requires one;
+- downloads that are already in progress.
+
+If a check is running, the last check failed, or no successful check has completed yet, complete a successful `/pu check` first.
+
+The command reports the queue count, individual download results, and a final summary counting saved, already installed/not newer, and failed downloads. **Skipped updates are not counted as download failures.**
+
+### Example result
+
+If five updates are confirmed but two require manual download and two lack required checksums, `/pu downloadall` queues one eligible update and reports four skipped updates.
+
+### Allowing downloads without provider checksums
+
+Standard sources default to `downloads.require-checksum: true`. If a provider offers no supported checksum, automatic downloading is blocked, including in bulk mode. To *deliberately* allow those files:
+
+```yaml
+downloads:
+  require-checksum: false
+```
+
+Run `/pu reload`, complete a fresh `/pu check`, then run `/pu downloadall` again.
+
+!!! warning "Reduced integrity assurance"
+    Disabling checksum requirements means the publisher's file digest cannot be verified. HTTPS, archive validation, plugin identity checks, size limits and freshness checks still apply. A checksum that is supplied but incorrect is still rejected.
+
+See [Checksums & Security](checksums.md) for provider-specific behaviour.
+
+
 
 Downloads are saved to:
 

@@ -9,7 +9,7 @@ All commands use `/pu`, which is an alias of `/pluginupdates`.
 | `/pu scan` | Scan installed JARs, discover sources, save config and check updates |
 | `/pu check` | Check already-known sources without retrying automatic discovery |
 | `/pu download <plugin>` | Download an available update |
-| `/pu downloadall` | Queue all confirmed, directly downloadable updates from the last successful check |
+| `/pu downloadall` | Queue all confirmed, directly downloadable updates from the last successful check (v1.5.0) |
 | `/pu cleanup` | Preview config entries whose configured JAR files are missing |
 | `/pu cleanup confirm` | Back up the config and remove exactly the previewed missing-file entries |
 | `/pu stats` | Show the latest check duration, update count and provider success/failure counts |
@@ -39,7 +39,9 @@ pu check
 
 For `/pu download`, tab completion supplies plugin names when an available update can be downloaded. `/pu downloadall` is also available in subcommand completion.
 
-## Bulk downloads
+## Bulk downloads (v1.5.0)
+
+See the [full DownloadAll guide](downloads.md#download-all-confirmed-updates) for eligibility, skipped items, checksum policy and examples.
 
 Run `/pu scan` or `/pu check` to refresh the update report, then run `/pu downloadall`. The command downloads only confirmed newer versions with direct URLs from the latest successful check. It skips unconfirmed versions, unavailable direct downloads, files blocked by checksum settings, and downloads already in progress. A running/failed check must be resolved first.
 

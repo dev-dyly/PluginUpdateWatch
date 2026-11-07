@@ -13,9 +13,12 @@ Supported update sources:
 
 **PluginUpdateWatch 1.5.0**
 
-[Download PluginUpdateWatch](https://github.com/dylantanderson92-lang/PluginUpdateWatch/releases/latest){ .md-button .md-button--primary }
+[Download PluginUpdateWatch](https://github.com/dev-dyly/PluginUpdateWatch/releases/latest){ .md-button .md-button--primary }
 
 [Download the 1.5.0 JAR](https://github.com/dev-dyly/PluginUpdateWatch/releases/download/v1.5.0/PluginUpdateWatch-1.5.0.jar) or view the latest release above.
+
+!!! tip "New in v1.5.0 — Download all confirmed updates"
+    Run `/pu check` followed by `/pu downloadall` to queue eligible updates. Manual-only and checksum-blocked items are reported and skipped. Files are saved for review, **not installed automatically**. See the [DownloadAll guide](downloads.md#download-all-confirmed-updates).
 
 ## Quick start
 
@@ -39,7 +42,7 @@ Supported update sources:
 - Version comparison and download freshness checks to reduce false alerts
 - Manual source configuration using only a JAR filename and source link
 - Config cleanup with backups
-- Single-plugin and bulk downloads with /pu downloadall
+- Single-plugin and bulk downloads with `/pu downloadall` ([guide](downloads.md#download-all-confirmed-updates))
 - Download checksum verification
 - Download archive validation
 - Admin join notifications

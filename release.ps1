@@ -14,7 +14,7 @@ if (Test-Path $pluginYml) {
     $content = Get-Content $pluginYml -Raw
     if ($content -notmatch '\$\{project\.version\}') {
         $content = $content -replace '(?m)^version:\s*.*$', "version: '$Version'"
-        Set-Content -Path $pluginYln -Value $content -NoNewline
+        Set-Content -Path $pluginYml -Value $content -NoNewline
     }
 }
 

@@ -1,3 +1,14 @@
+# Stable release preparation — 1.5.0
+
+Checked 7 November 2026 (Pacific/Auckland).
+
+- The server owner successfully tested `/pu downloadall` on a live Paper server: five confirmed updates, one checksum-verified ViaVersion download saved, two manual-only releases skipped, two releases skipped by checksum policy, zero failures.
+- Bulk downloads reuse the existing validated single-download pipeline, with only confirmed newer release labels eligible. The test log confirms no automatic installation of plugin JARs.
+- Version metadata is updated for `1.5.0`; release workflow verifies the final artifact's version, SHA-256 and Java 21/25 Maven builds before GitHub publication.
+- No configuration migration is needed.
+
+---
+
 # Stable release preparation - 1.4.1
 
 Checked 9 October 2026 (Pacific/Auckland).

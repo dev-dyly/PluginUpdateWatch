@@ -1,3 +1,21 @@
+# PluginUpdateWatch 1.5.0
+
+**Stable release — Bulk Update Downloads**
+
+The new `/pu downloadall` command downloads all **confirmed, eligible plugin updates** from the most recent successful scan or check. The server owner verified the feature on a live Paper server: five updates were detected, ViaVersion downloaded and passed checksum validation, while two manual-only releases and two checksum-blocked releases were correctly skipped.
+
+- **Download all:** Run `/pu check` (or `/pu scan`) followed by `/pu downloadall`. Downloads are queued sequentially without blocking the main server thread.
+- **Safety preserved:** Confirmed newer releases only. Files without direct download links, files blocked by the configured checksum policy, and downloads already in progress are skipped. Unknown/unconfirmed versions and provider errors are not silently downloaded.
+- **Actionable results:** The command reports the number queued, reasons for skipped updates, each download's result, and a final count of saved, already-installed/not-newer, and failed downloads.
+- **Existing integrity checks:** Downloads still enforce publisher checksums when required, HTTPS and filename restrictions, archive/plugin identity checks, and protection against non-newer replacement files.
+- **No automatic installation:** Downloaded JARs are saved to `plugins/PluginUpdateWatch/downloads/`. Stop the server and replace installed JARs manually after reviewing plugin and Minecraft-version compatibility.
+- **Compatibility:** Existing `config.yml` files and single-plugin `/pu download <plugin>` behaviour are preserved. No configuration migration is required.
+- **Build:** Targets Paper 1.21.11–26.3, Java 21 bytecode. Release CI verifies the packaged JAR on Java 21 and 25 before publishing.
+
+**Install:** Download `PluginUpdateWatch-1.5.0.jar` from Assets. Stop the server, remove the previous PluginUpdateWatch JAR, add the new one, keep your existing `plugins/PluginUpdateWatch/` folder, then restart.
+
+---
+
 # PluginUpdateWatch 1.4.1
 
 Download PluginUpdateWatch-1.4.1.jar from Assets. Stop the server, replace the old PluginUpdateWatch JAR, keep the configuration folder, then restart. No config migration is required. The tested preview passed the server owner's live Paper 26.3 test; stable verification passed 166 checks on Java 21 and Java 25.

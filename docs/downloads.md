@@ -31,7 +31,7 @@ The command skips and reports:
 
 Both download commands require a completed, successful check. Checks in progress, failed scans/reloads and successful reloads invalidate download eligibility until a fresh check completes. Each queued item checks the configuration on the background worker before connecting; edits on disk block cached downloads until `/pu reload` and a fresh check.
 
-Reload (including a rejected reload), plugin disable and server shutdown request cancellation of active and queued downloads. Queued items are accounted for even if they never start. No server-thread wait is introduced. An operating-system/network read may take until its timeout to observe interruption; a final file move already in progress may finish. Review the downloads folder after cancellation before retrying.
+Reload (including a rejected reload), plugin disable and server shutdown request cancellation of active and queued downloads. Queued items are accounted for even if they never start. No server-thread wait is introduced. An operating-system/network read may take until its timeout to observe interruption; a final file move already in progress may finish. Review the downloads folder after cancellation before retrying. If the JVM exits before an interrupted transfer removes its temporary file, the next plugin startup removes only its reserved `.download-<number>.tmp` files on the I/O worker, before admitting new transfers; saved JARs are retained.
 
 The command reports the queue count, individual download results, and a final processed/total summary counting saved, already saved/installed/not newer, failed, and cancellation-requested downloads. **Skipped updates are not counted as download failures.**
 

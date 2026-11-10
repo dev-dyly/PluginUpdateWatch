@@ -5,6 +5,24 @@ import java.nio.file.*;
 
 final class DownloadManager {
     interface Opener { InputStream open(String url, int seconds) throws IOException; }
+    /** Recover partial transfers left when the JVM exits before an interrupted daemon can clean up. */
+    static int cleanupIncomplete(Path folder) throws IOException {
+        if (!Files.exists(folder, LinkOption.NOFOLLOW_LINKS)) return 0;
+        int removed = 0;
+        IOException failure = null;
+        try (var files = Files.list(folder)) {
+            for (Path path : files.filter(p -> p.getFileName().toString().matches("\\.download-[0-9]+\\.tmp")).toList()) {
+                if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) continue;
+                try { Files.delete(path); removed++; }
+                catch (IOException e) {
+                    if (failure == null) failure = e;
+                    else failure.addSuppressed(e);
+                }
+            }
+        }
+        if (failure != null) throw failure;
+        return removed;
+    }
     static Path download(Remote.Source source, Remote.Release release, Path folder, Settings settings, boolean requireChecksum, Opener opener) throws Exception {
         return download(source, release, folder, settings, requireChecksum, opener, null);
     }

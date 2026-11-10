@@ -49,10 +49,26 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
         }
         worker = Executors.newSingleThreadExecutor(r -> { Thread t = new Thread(r, "PluginUpdateWatch-IO"); t.setDaemon(true); return t; });
         downloads = new DownloadQueue<>(worker, this::sync);
+        recoverIncompleteDownloads();
         getServer().getPluginManager().registerEvents(this, this);
         Objects.requireNonNull(getCommand("pluginupdates")).setTabCompleter(this);
         schedule();
         configureMetrics();
+    }
+    private void recoverIncompleteDownloads() {
+        var folder = getDataFolder().toPath().resolve("downloads");
+        var logger = getLogger();
+        Settings snapshot = settings;
+        // This is the first job on the same worker as downloads, so no new transfer can race recovery.
+        worker.execute(() -> {
+            try {
+                int removed = DownloadManager.cleanupIncomplete(folder);
+                if (removed > 0) logger.info("Recovered " + removed + " incomplete download temporary file(s) from a previous shutdown; saved JARs were retained.");
+            } catch (Exception e) {
+                logger.severe("Incomplete download cleanup failed. " + Failure.classify(e).describe(null));
+                diagnostics("Incomplete download cleanup", e, snapshot);
+            }
+        });
     }
     @Override public void onDisable() {
         checkState.invalidate();

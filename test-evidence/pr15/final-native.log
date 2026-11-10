@@ -1,0 +1,19 @@
+[07:28:59] [ServerMain/INFO]: [bootstrap] Running Java 25 (OpenJDK 64-Bit Server VM 25.0.4.1+8-LTS; Amazon.com Inc. Corretto-25.0.4.8.1) on Windows 11 10.0 (amd64)
+[07:28:59] [ServerMain/INFO]: [bootstrap] Loading Paper 26.3-246-main@b31b4b5 (2026-11-09T12:57:12Z) for Minecraft 26.3
+[07:29:03] [Server thread/INFO]: This server is running Paper version 26.3-246-main@b31b4b5 (2026-11-09T12:57:12Z) (Implementing API version 26.3.build.246-stable)
+[07:29:04] [Server thread/INFO]: [PluginUpdateWatch] Loading server plugin PluginUpdateWatch v1.5.0
+[07:29:05] [Server thread/INFO]: [PluginUpdateWatch] Enabling PluginUpdateWatch v1.5.0
+[07:29:05] [Server thread/INFO]: RCON running on 127.0.0.1:25596
+[07:29:05] [Server thread/INFO]: Done (6.896s)! For help, type "help"
+[07:29:11] [Server thread/INFO]: [PluginUpdateWatch] [INFO] [UPDATE] LuckPerms: 5.5.53 -> v5.5.71-bukkit. Use /pu download LuckPerms
+[07:29:11] [Server thread/INFO]: [PluginUpdateWatch] Check complete: 1 update(s). Full details: /pu list all.
+[07:29:26] [Server thread/INFO]: [PluginUpdateWatch] Scanning installed JARs and checking update sources...
+[07:29:26] [Server thread/INFO]: [PluginUpdateWatch] [INFO] [UPDATE] LuckPerms: 5.5.53 -> v5.5.71-bukkit. Use /pu download LuckPerms
+[07:29:26] [Server thread/INFO]: [PluginUpdateWatch] Check complete: 1 update(s). Full details: /pu list all.
+[07:29:26] [Server thread/INFO]: [PluginUpdateWatch] Check complete: 1 update(s). Full details: /pu list all.
+[07:29:27] [Server thread/INFO]: [PluginUpdateWatch] [INFO] Saved plugins\PluginUpdateWatch\downloads\LuckPerms-Bukkit-5.5.71.jar; version 5.5.71; checksum verified. Stop server, replace old JAR, restart. Help: https://dev-dyly.github.io/PluginUpdateWatch/troubleshooting/#installing-updates
+[07:29:27] [Server thread/INFO]: [PluginUpdateWatch] [INFO] downloadall complete: 1/1 processed, 1 saved, 0 already saved/installed/not newer, 0 failed, 0 cancellation(s) requested. Review plugins/PluginUpdateWatch/downloads/ before installing.
+[07:29:27] [Server thread/INFO]: [PluginUpdateWatch] LuckPerms: [INFO] ALREADY_DOWNLOADED | Modrinth: The selected artifact is already saved in the downloads folder; no duplicate was saved. Help: https://dev-dyly.github.io/PluginUpdateWatch/troubleshooting/#already-installed
+[07:29:27] [Server thread/INFO]: [PluginUpdateWatch] [INFO] downloadall complete: 1/1 processed, 0 saved, 1 already saved/installed/not newer, 0 failed, 0 cancellation(s) requested. Review plugins/PluginUpdateWatch/downloads/ before installing.
+[07:29:28] [Server thread/INFO]: Stopping server
+[07:29:28] [Server thread/INFO]: [PluginUpdateWatch] Disabling PluginUpdateWatch v1.5.0

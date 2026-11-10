@@ -60,4 +60,34 @@ class DownloadFilenameTest {
         Path path = temp.resolve("too-large.jar"); Files.write(path, jar("Example", "x".repeat(Discovery.MAX_DESCRIPTOR_BYTES)));
         assertThrows(Exception.class, () -> Discovery.read(path)); assertThrows(Exception.class, () -> JarValidation.validate(path, "Example"));
     }
+    @Test void identicalVerifiedDownloadDoesNotOpenAnotherConnectionOrMarkInstalledCurrent() throws Exception {
+        byte[] bytes = jar("Example", "same");
+        download("Example", "plugin.jar", bytes);
+        String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+        var source = new Remote.Source("Example", "1", "github", "o/r", ".*", "26.3");
+        var release = new Remote.Release("2.0", "url", "page", null, hash, "plugin.jar");
+        var error = assertThrows(Failure.Problem.class, () -> DownloadManager.download(source, release, temp, Settings.defaults(), true,
+                (url, seconds) -> { fail("Already saved verified artifact must not be downloaded again"); return null; }));
+        assertEquals(Failure.Kind.ALREADY_DOWNLOADED, Failure.classify(error).kind());
+        assertArrayEquals(bytes, Files.readAllBytes(temp.resolve("plugin.jar")));
+        var result = new UpdateCheckService.Result(source, release, Versions.Status.UPDATE, null);
+        assertSame(result, ReportVisibility.afterDownload(result, Failure.classify(error)));
+    }
+    @Test void checksumlessIdenticalDownloadDiscardsTemporaryFileWithoutReplacingAcceptedFile() throws Exception {
+        byte[] bytes = jar("Example", "same"); download("Example", "plugin.jar", bytes);
+        var release = new Remote.Release("2", "url", "page", null, null, "plugin.jar");
+        var source = new Remote.Source("Example", "1", "web", "url", ".*", "26.3");
+        var error = assertThrows(Failure.Problem.class, () -> DownloadManager.download(source, release, temp, Settings.defaults(), false,
+                (url, seconds) -> new ByteArrayInputStream(bytes)));
+        assertEquals(Failure.Kind.ALREADY_DOWNLOADED, Failure.classify(error).kind());
+        try (var files = Files.list(temp)) { assertEquals(1, files.count()); }
+    }
+    @Test void unrelatedExistingFilenameFailsBeforeNetwork() throws Exception {
+        byte[] original = jar("First", ""); download("First", "plugin.jar", original);
+        var source = new Remote.Source("Second", "1", "web", "url", ".*", "26.3");
+        var release = new Remote.Release("2", "url", "page", null, null, "plugin.jar");
+        assertThrows(Failure.Problem.class, () -> DownloadManager.download(source, release, temp, Settings.defaults(), false,
+                (url, seconds) -> { fail("Filename collision must be found before network"); return null; }));
+        assertArrayEquals(original, Files.readAllBytes(temp.resolve("plugin.jar")));
+    }
 }

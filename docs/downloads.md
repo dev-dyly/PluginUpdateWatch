@@ -29,9 +29,11 @@ The command skips and reports:
 - releases without a checksum when the configured checksum policy requires one;
 - downloads that are already in progress.
 
-If a check is running, the last check failed, or no successful check has completed yet, complete a successful `/pu check` first.
+Both download commands require a completed, successful check. Checks in progress, failed scans/reloads and successful reloads invalidate download eligibility until a fresh check completes. Each queued item checks the configuration on the background worker before connecting; edits on disk block cached downloads until `/pu reload` and a fresh check.
 
-The command reports the queue count, individual download results, and a final summary counting saved, already installed/not newer, and failed downloads. **Skipped updates are not counted as download failures.**
+Reload (including a rejected reload), plugin disable and server shutdown request cancellation of active and queued downloads. Queued items are accounted for even if they never start. No server-thread wait is introduced. An operating-system/network read may take until its timeout to observe interruption; a final file move already in progress may finish. Review the downloads folder after cancellation before retrying.
+
+The command reports the queue count, individual download results, and a final processed/total summary counting saved, already saved/installed/not newer, failed, and cancellation-requested downloads. **Skipped updates are not counted as download failures.**
 
 ### Example result
 
@@ -71,7 +73,7 @@ When a provider does not supply a filename, normally Spigot, the fallback is:
 <PluginName>.jar
 ```
 
-PluginUpdateWatch does not automatically rename or delete previously downloaded files.
+PluginUpdateWatch does not automatically rename or delete previously downloaded files. An identical, validated existing artifact is an informational `ALREADY_DOWNLOADED` outcome. With a matching publisher checksum it is reused without another network transfer; without a checksum, byte equality is checked after validation. This does not mark the installed plugin current. A changed artifact may replace a previously downloaded file only after both files validate as the same plugin; unrelated plugin identities and filename collisions remain blocked.
 
 ## Installing a downloaded update
 

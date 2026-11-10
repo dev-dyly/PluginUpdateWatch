@@ -184,3 +184,11 @@ Check disk space, file permissions and locks on the downloads folder. Stop the s
 ## Installing downloaded updates
 
 A saved download is not installed automatically. Stop the server, replace the old plugin JAR with the validated downloaded file, then restart and run `/pu scan`. A newer downloaded file remains an update until the installed plugin changes.
+
+## Already downloaded and cancellation
+
+`ALREADY_DOWNLOADED` means the selected artifact is already in PluginUpdateWatch's downloads folder. It does not mean the installed plugin has been upgraded. Review and install it manually after stopping the server.
+
+A bulk completion summary accounts for every queued item, including cancellation requested by reload/disable. Check the downloads folder after cancellation: a final move already in progress may have completed before interruption was observed. Controlled failures discard temporary files; an abrupt JVM or operating-system termination cannot guarantee cleanup.
+
+A missing required checksum is a WARNING and remains blocked. A supplied mismatched checksum, invalid archive, wrong plugin identity or filesystem failure is still an ERROR. Scheduled scans retain unchanged issues in reports and summary counts rather than replaying their full warnings every time.

@@ -57,4 +57,10 @@ class BulkDownloadPlanTest {
         assertEquals(1, plan.manual());
         assertTrue(plan.ready().isEmpty());
     }
+    @Test void duplicateNamesInOnePlanCannotBeQueuedTwice() {
+        var first = result("Example", Versions.Status.UPDATE, "https://example.org/file.jar", true, null);
+        var duplicate = result("EXAMPLE", Versions.Status.UPDATE, "https://example.org/file.jar", true, null);
+        var plan = BulkDownloadPlan.plan(List.of(first, duplicate), r -> true, Set.of());
+        assertEquals(List.of(first), plan.ready()); assertEquals(1, plan.alreadyRunning());
+    }
 }

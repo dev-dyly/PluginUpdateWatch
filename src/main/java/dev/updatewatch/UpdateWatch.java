@@ -28,7 +28,9 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
     });
     private String loadedConfig;
     private String lastCheckFailure;
-    private final Set<String> downloads = new HashSet<>();
+    private DownloadQueue<String> downloads;
+    private final ScanMessages scanMessages = new ScanMessages();
+    private final ScanMessages checkFailures = new ScanMessages();
     private ExecutorService worker;
     private BukkitTask timer;
     private Map<String, String> discoveryNotes = Map.of();
@@ -46,6 +48,7 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
             getLogger().severe(Failure.classify(e).describe(null)); getServer().getPluginManager().disablePlugin(this); return;
         }
         worker = Executors.newSingleThreadExecutor(r -> { Thread t = new Thread(r, "PluginUpdateWatch-IO"); t.setDaemon(true); return t; });
+        downloads = new DownloadQueue<>(worker, this::sync);
         getServer().getPluginManager().registerEvents(this, this);
         Objects.requireNonNull(getCommand("pluginupdates")).setTabCompleter(this);
         schedule();
@@ -53,6 +56,8 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
     }
     @Override public void onDisable() {
         checkState.invalidate();
+        if (timer != null) timer.cancel();
+        if (downloads != null) downloads.cancelAll();
         if (worker != null) worker.shutdownNow();
         metrics.close();
     }
@@ -88,11 +93,36 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
             try { getServer().getScheduler().runTask(this, action); } catch (org.bukkit.plugin.IllegalPluginAccessException ignored) { }
         }
     }
-    private void tell(CommandSender sender, String message) {
-        if (message.contains("[WARNING]") || message.contains("[ERROR]")) message = Troubleshooting.help(message);
-        NamedTextColor color = message.contains("[ERROR]") ? NamedTextColor.RED
-                : message.contains("[WARNING]") ? NamedTextColor.YELLOW : NamedTextColor.GRAY;
-        sender.sendMessage(Component.text("[Updates] ", NamedTextColor.AQUA).append(Component.text(message, color)));
+    private void tell(CommandSender sender, String message) { tell(sender, message, false); }
+    private void report(CommandSender sender, String message) { tell(sender, message, true); }
+    private void tell(CommandSender sender, String message, boolean audit) {
+        String text = message.contains("[WARNING]") || message.contains("[ERROR]") ? Troubleshooting.help(message) : message;
+        NamedTextColor color = text.contains("[ERROR]") ? NamedTextColor.RED
+                : text.contains("[WARNING]") ? NamedTextColor.YELLOW : NamedTextColor.GRAY;
+        MessageLog.deliver(getLogger(), sender instanceof ConsoleCommandSender, audit,
+                () -> sender.sendMessage(Component.text("[Updates] ", NamedTextColor.AQUA).append(Component.text(text, color))), text);
+    }
+    private void diagnostics(String operation, Throwable error, Settings snapshot) {
+        if (snapshot.debug()) getLogger().log(java.util.logging.Level.INFO, "[DEBUG] " + operation, error);
+    }
+    private void checkFailure(CommandSender sender, String message) {
+        lastCheckFailure = message;
+        if (sender != null) report(sender, message);
+        else {
+            var changed = checkFailures.changed(Map.of("check", message));
+            changed.forEach(m -> tell(getServer().getConsoleSender(), m));
+            if (changed.isEmpty()) tell(getServer().getConsoleSender(), "[INFO] Check remains unsuccessful; previous issue unchanged. Use /pu list for the failure; cached downloads remain blocked.");
+        }
+    }
+    private boolean downloadCacheReady(CommandSender sender) {
+        try {
+            DownloadCache.validate(checkState.running(), lastReport != null, lastCheckFailure,
+                    loadedConfig, loadedConfig); // Disk changes are checked on the I/O worker before opening a download.
+            return true;
+        } catch (Exception e) {
+            tell(sender, Failure.classify(e).describe(null));
+            return false;
+        }
     }
     private void check(CommandSender sender, boolean scan) {
         if (!getServer().isPrimaryThread()) throw new IllegalStateException("Check state must be accessed on the server thread");
@@ -103,9 +133,9 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
         var configFile = getDataFolder().toPath().resolve("config.yml");
         String diskSnapshot;
         try { diskSnapshot = java.nio.file.Files.readString(configFile); }
-        catch (Exception e) { tell(sender == null ? getServer().getConsoleSender() : sender, "Cannot read config.yml. " + Failure.classify(e).describe(null)); return; }
+        catch (Exception e) { checkFailure(sender, "Cannot read config.yml. " + Failure.classify(e).describe(null)); return; }
         if (!diskSnapshot.equals(loadedConfig)) {
-            tell(sender == null ? getServer().getConsoleSender() : sender, "[WARNING] CONFIG_ERROR | Config changed on disk. Run /pu reload before checking or scanning."); return;
+            checkFailure(sender, "[WARNING] CONFIG_ERROR | Config changed on disk. Run /pu reload before checking or scanning."); return;
         }
         String minecraft = getServer().getMinecraftVersion();
         Settings checkSettings = settings;
@@ -119,10 +149,8 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
             } catch (Exception e) {
                 sync(() -> {
                     if (checkState.finish(epoch)) {
-                        lastCheckFailure = "Scan/check failed: " + UpdateCheckService.message(e);
-                        CommandSender recipient = sender == null ? getServer().getConsoleSender() : sender;
-                        tell(recipient, console(recipient) ? ConsoleReport.error(null, lastCheckFailure) : lastCheckFailure);
-                        if (!console(recipient)) getLogger().warning(lastCheckFailure);
+                        diagnostics("Scan/check failed", e, checkSettings);
+                        checkFailure(sender, "Scan/check failed: " + UpdateCheckService.message(e));
                     }
                     resumePendingScan();
                 });
@@ -135,7 +163,7 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
                 try {
                     if (!snapshot.equals(getConfig().saveToString()) || !diskSnapshot.equals(java.nio.file.Files.readString(configFile))) {
                         lastCheckFailure = "[WARNING] CONFIG_ERROR | Config changed during scan; results discarded. Run /pu reload.";
-                        tell(sender == null ? getServer().getConsoleSender() : sender, lastCheckFailure); return;
+                        checkFailure(sender, lastCheckFailure); resumePendingScan(); return;
                     }
                     if (scan) {
                         var updated = ConfigManager.parse(diskSnapshot);
@@ -149,17 +177,17 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
                     }
                 } catch (Exception e) {
                     lastCheckFailure = "Could not save discovery config. " + Failure.classify(e).describe(null);
-                    tell(sender == null ? getServer().getConsoleSender() : sender, lastCheckFailure); return;
+                    checkFailure(sender, lastCheckFailure); resumePendingScan(); return;
                 }
-                boolean changed = !checked.equals(results);
-                changed |= !discoveryNotes.equals(resolution.notes());
+                boolean newUpdates = ReportVisibility.newUpdates(results, checked);
                 discoveryNotes = resolution.notes();
                 results = checked; lastReport = report;
                 lastCheckFailure = null;
-                if (checkSettings.debug()) getLogger().info("Check completed in " + report.durationMillis() + " ms; " + report.counts() + "; updates=" + updateCount());
+                checkFailures.changed(Map.of()).forEach(m -> tell(getServer().getConsoleSender(), m));
+                if (checkSettings.debug()) getLogger().info("[DEBUG] Check completed in " + report.durationMillis() + " ms; " + report.counts() + "; updates=" + updateCount());
                 if (sender != null) show(sender);
-                if (changed) {
-                    if (sender != getServer().getConsoleSender()) show(getServer().getConsoleSender());
+                automaticReport(sender);
+                if (newUpdates) {
                     if (hasUpdates()) for (var player : getServer().getOnlinePlayers())
                         if (player.hasPermission("pluginupdatewatch.admin") && player != sender) tell(player, "Newer plugin versions are available. Use /pu list.");
                 }
@@ -247,50 +275,39 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
             }
             int count = cleanupPreview.missing().size();
             var backup = ConfigCleanup.apply(configFile, settings.pluginsFolder(), cleanupPreview);
-            loadSettings(); checkState.invalidate(); results = Map.of(); discoveryNotes = Map.of(); lastReport = null; lastCheckFailure = null;
+            loadSettings(); downloads.cancelAll(); checkState.invalidate(); results = Map.of(); discoveryNotes = Map.of(); lastReport = null; lastCheckFailure = null;
             cleanupPreview = null; cleanupOwner = null; schedule();
             tell(sender, "Removed " + count + " stale config entry/entries. Backup: " + backup + ". A fresh scan will run shortly.");
         } catch (Exception e) { cleanupPreview = null; cleanupOwner = null; tell(sender, "Cleanup stopped: " + UpdateCheckService.message(e)); }
     }
-    /** Each bulk request reports a single summary after its last queued download finishes. */
-    private final class BulkProgress {
-        private final CommandSender sender;
-        private final int total;
-        private int completed;
-        private int saved;
-        private int unchanged;
-        private int failed;
-
-        BulkProgress(CommandSender sender, int total) {
-            this.sender = sender;
-            this.total = total;
-        }
-
-        void completed(Failure failure) {
-            completed++;
-            if (failure == null) saved++;
-            else if (failure.noUpdate()) unchanged++;
-            else failed++;
-            if (completed == total)
-                tell(sender, "downloadall complete: " + saved + " saved, " + unchanged
-                        + " already installed/not newer, " + failed + " failed. Review plugins/PluginUpdateWatch/downloads/ before installing.");
+    private void automaticReport(CommandSender sender) {
+        Map<String, String> messages = new LinkedHashMap<>();
+        discoveryNotes.forEach((name, note) -> {
+            if (ReportVisibility.note(true, note)) messages.put("Source " + name, ConsoleReport.note(name, note));
+        });
+        results.forEach((key, result) -> {
+            if (ReportVisibility.result(true, result)) messages.put("Plugin " + result.source().name(), ConsoleReport.result(result, checksumRequired(result)));
+        });
+        long uncertain = results.values().stream().filter(r -> r.error() == null
+                && (r.status() == Versions.Status.UNKNOWN || r.status() == Versions.Status.DIFFERENT)).count();
+        if (uncertain > 0) messages.put("Unconfirmed versions", "[WARNING] " + uncertain
+                + " plugin version comparison(s) unconfirmed; no newer release established. Use /pu list all. Help: " + Troubleshooting.link("unconfirmed-versions"));
+        var changed = scanMessages.changed(messages);
+        // A local console command already received the full report; RCON has a separate response channel.
+        if (!(sender instanceof ConsoleCommandSender)) {
+            changed.forEach(message -> tell(getServer().getConsoleSender(), message));
+            long untracked = Arrays.stream(getServer().getPluginManager().getPlugins()).filter(p -> p != this
+                    && !results.containsKey(p.getName().toLowerCase(Locale.ROOT))
+                    && !"[INFO] Disabled in existing configuration".equals(discoveryNotes.get(p.getName()))).count();
+            tell(getServer().getConsoleSender(), ConsoleReport.summary(updateCount(), untracked,
+                    results.values().stream().filter(r -> r.error() != null).count(),
+                    results.values().stream().filter(r -> r.status() == Versions.Status.UNKNOWN || r.status() == Versions.Status.DIFFERENT).count()));
         }
     }
 
     private void downloadAll(CommandSender sender) {
-        if (checkState.running()) {
-            tell(sender, "An update check is running. Retry /pu downloadall when it finishes.");
-            return;
-        }
-        if (lastCheckFailure != null) {
-            tell(sender, "[WARNING] The last check failed. Run /pu check successfully before /pu downloadall.");
-            return;
-        }
-        if (lastReport == null) {
-            tell(sender, "No completed update check yet. Run /pu scan or /pu check first.");
-            return;
-        }
-        var plan = BulkDownloadPlan.plan(results.values(), this::checksumRequired, downloads);
+        if (!downloadCacheReady(sender)) return;
+        var plan = BulkDownloadPlan.plan(results.values(), this::checksumRequired, downloads.active());
         if (plan.confirmedUpdates() == 0) {
             tell(sender, "No confirmed updates in the last completed check. Run /pu check to refresh.");
             return;
@@ -307,89 +324,66 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
         }
         tell(sender, "Queueing " + plan.ready().size() + " of " + plan.confirmedUpdates()
                 + " confirmed update(s) from the last check. Downloads are saved for manual installation, not applied automatically.");
-        var progress = new BulkProgress(sender, plan.ready().size());
+        var progress = new BulkProgress(plan.ready().size());
         for (Result r : plan.ready()) download(sender, r.source().name(), progress);
     }
 
-    private void download(CommandSender sender, String name) { download(sender, name, null); }
+    private void download(CommandSender sender, String name) {
+        if (downloadCacheReady(sender)) download(sender, name, null);
+    }
 
     private void download(CommandSender sender, String name, BulkProgress progress) {
         boolean console = console(sender);
         String key = name.toLowerCase(Locale.ROOT);
         Result r = results.get(key);
-        if (r == null || r.error() != null || r.status() == Versions.Status.CURRENT || r.release().download() == null) {
-            tell(sender, "No downloadable update cached for that plugin. Use /pu check or its release page."); return;
-        }
-        if (checksumRequired(r) && !r.release().hasChecksum()) {
-            String message = "[ERROR] PROVIDER_ERROR | " + r.source().type() + " supplies no checksum for " + r.source().name()
-                    + ". Download blocked. Use its release page, or explicitly set downloads.require-checksum: false and /pu reload to allow an unverified download.";
-            if (console) message = "[ERROR] " + r.source().name() + ": checksum missing; download blocked. Release: " + r.release().page()
-                    + ". Help: " + Troubleshooting.link("checksums");
-            tell(sender, message); if (!console) getLogger().warning(message); return;
-        }
-        if (!downloads.add(key)) {
-            tell(sender, "That download is already running.");
-            if (progress != null) progress.completed(Failure.classify(new IllegalStateException("Download already queued")));
+        if (r == null || r.error() != null || r.status() == Versions.Status.CURRENT || r.release() == null || r.release().download() == null) {
+            tell(sender, "No downloadable update cached for that plugin. Use /pu check or its release page.");
+            if (progress != null) completeBulk(sender, progress, new Failure(Failure.Kind.INVALID_CONFIG, "Cached download unavailable", 0));
             return;
         }
-        if (console && progress == null) tell(sender, ConsoleReport.downloadStart(r));
-        if (!console) {
-            if (r.status() != Versions.Status.UPDATE)
-                tell(sender, "[WARNING] No newer version has been confirmed. This explicitly requested download is for inspection, not a verified upgrade.");
-            if (progress == null) tell(sender, "Downloading " + r.source().name() + " " + r.release().version() + "...");
-            if (progress == null || r.release().type().warning)
-                tell(sender, r.source().name() + ": " + r.release().type().message());
-            if (r.release().compatibilityWarning() != null) {
-                tell(sender, r.release().compatibilityWarning());
-                getLogger().warning(r.source().name() + ": " + r.release().compatibilityWarning());
-            }
-            if (r.release().type().warning) getLogger().warning(r.source().name() + ": " + r.release().type().message());
+        if (checksumRequired(r) && !r.release().hasChecksum()) {
+            String message = "[WARNING] CHECKSUM_MISSING | " + r.source().type() + " supplies no checksum for " + r.source().name()
+                    + ". Download blocked. Use its release page, or explicitly set downloads.require-checksum: false and /pu reload to allow an unverified download.";
+            if (console) message = "[WARNING] " + r.source().name() + ": checksum missing; download blocked. Release: " + r.release().page()
+                    + ". Help: " + Troubleshooting.link("checksums");
+            report(sender, message);
+            if (progress != null) completeBulk(sender, progress, new Failure(Failure.Kind.CHECKSUM_MISSING, "Required checksum missing", 0));
+            return;
         }
+        if (downloads.active().contains(key)) {
+            tell(sender, "That download is already running.");
+            if (progress != null) completeBulk(sender, progress, Failure.classify(new IllegalStateException("Download already queued")));
+            return;
+        }
+        String startMessage = ConsoleReport.downloadStart(r);
+        if (progress == null || startMessage.contains("[WARNING]")) report(sender, startMessage);
         Settings downloadSettings = settings;
         boolean checksumRequired = checksumRequired(r);
         var downloadFolder = getDataFolder().toPath().resolve("downloads");
-        if (!console && !r.release().hasChecksum()) {
-            String warning = "[WARNING] " + r.source().name() + ": checksum unavailable; explicitly allowed by config. HTTPS and JAR structure will be checked, but integrity is unverified.";
-            tell(sender, warning); getLogger().warning(warning);
-        }
-        worker.execute(() -> {
-            String message;
-            Failure outcome = null;
-            try {
-                var path = Remote.download(r.source(), r.release(), downloadFolder, downloadSettings, checksumRequired);
-                var descriptor = Discovery.read(path);
-                var inferredType = ReleaseType.fromLabel(descriptor.version());
-                var actualType = inferredType == ReleaseType.UNKNOWN ? r.release().type() : inferredType;
-                String freshness = Versions.compare(r.source().installed(), descriptor.version()) == Versions.Status.UPDATE
-                        ? "[INFO] JAR version is newer than the installed version. "
-                        : "[WARNING] JAR version does not establish a newer release; this file is for inspection only. ";
-                message = (r.release().hasChecksum() ? "[INFO] Checksum verified. " : "[WARNING] Checksum unverified (explicitly allowed). ")
-                        + "Saved " + path + ". Downloaded version: " + descriptor.version() + ". " + freshness + actualType.message()
-                        + (r.release().compatibilityWarning() == null ? "" : " " + r.release().compatibilityWarning())
-                        + " Stop the server, replace the old plugin JAR, then restart. Check the release's Minecraft compatibility first.";
-                if (console) message = ConsoleReport.downloadSaved(r, path, descriptor.version(), actualType);
-            } catch (Exception e) {
-                var failure = Failure.classify(e);
-                outcome = failure;
-                message = (console ? ConsoleReport.error(r.source().name(), failure.describe(r.source().type())) : failure.describe(r.source().type())) + (failure.noUpdate() || console ? ""
-                        : " Retry downloads with /pu download " + r.source().name() + " after resolving the problem.");
+        String configSnapshot = loadedConfig;
+        var configPath = getDataFolder().toPath().resolve("config.yml");
+        downloads.submit(key, () -> {
+            DownloadCache.validate(false, true, null, configSnapshot,
+                    java.nio.file.Files.readString(configPath));
+            var path = Remote.download(r.source(), r.release(), downloadFolder, downloadSettings, checksumRequired);
+            var descriptor = Discovery.read(path);
+            var inferredType = ReleaseType.fromLabel(descriptor.version());
+            var actualType = inferredType == ReleaseType.UNKNOWN ? r.release().type() : inferredType;
+            return ConsoleReport.downloadSaved(r, path, descriptor.version(), actualType);
+        }, outcome -> {
+            Failure failure = outcome.error() == null ? null : Failure.classify(outcome.error());
+            if (outcome.error() != null) diagnostics("Download " + r.source().name(), outcome.error(), downloadSettings);
+            if (failure != null && failure.kind() == Failure.Kind.ALREADY_INSTALLED && results.get(key) == r) {
+                var updated = new LinkedHashMap<>(results);
+                updated.put(key, ReportVisibility.afterDownload(r, failure));
+                results = Collections.unmodifiableMap(updated);
             }
-            String finalMessage = message;
-            Failure finalOutcome = outcome;
-            sync(() -> {
-                if (finalOutcome != null && finalOutcome.kind() == Failure.Kind.ALREADY_INSTALLED && results.get(key) == r) {
-                    var updated = new LinkedHashMap<>(results);
-                    updated.put(key, ReportVisibility.afterDownload(r, finalOutcome));
-                    results = Collections.unmodifiableMap(updated);
-                }
-                downloads.remove(key); tell(sender, finalMessage);
-                if (progress != null) progress.completed(finalOutcome);
-                if (!console) {
-                    if (finalMessage.contains("[ERROR]") || finalMessage.contains("[WARNING]")) getLogger().warning(finalMessage);
-                    else getLogger().info(finalMessage);
-                }
-            });
+            report(sender, failure == null ? outcome.value() : ConsoleReport.error(r.source().name(), failure.describe(r.source().type())));
+            if (progress != null) completeBulk(sender, progress, failure);
         });
+    }
+    private void completeBulk(CommandSender sender, BulkProgress progress, Failure failure) {
+        if (progress.completed(failure)) report(sender, progress.summary());
     }
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.hasPermission("pluginupdatewatch.admin")) { tell(sender, "You do not have permission."); return true; }
@@ -414,10 +408,14 @@ public final class UpdateWatch extends JavaPlugin implements Listener, TabComple
             }
             case "reload" -> {
                 try {
-                    loadSettings(); checkState.invalidate(); results = Map.of(); discoveryNotes = Map.of(); lastReport = null; lastCheckFailure = null;
+                    loadSettings(); downloads.cancelAll(); checkState.invalidate(); results = Map.of(); discoveryNotes = Map.of(); lastReport = null; lastCheckFailure = null;
                     cleanupPreview = null; cleanupOwner = null;
                     configureMetrics(); schedule(); tell(sender, "Configuration reloaded. Automatic scan will run shortly.");
-                } catch (Exception e) { tell(sender, "Reload rejected; previous settings retained. " + Failure.classify(e).describe(null)); }
+                } catch (Exception e) {
+                    downloads.cancelAll();
+                    lastCheckFailure = "Reload rejected; previous settings retained. " + Failure.classify(e).describe(null);
+                    report(sender, lastCheckFailure);
+                }
             }
             default -> tell(sender, "Usage: /pu [list|scan|check|download <plugin>|downloadall|cleanup [confirm]|stats|reload]");
         }

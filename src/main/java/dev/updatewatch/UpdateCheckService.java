@@ -12,7 +12,7 @@ final class UpdateCheckService {
         long started = System.nanoTime();
         var config = new YamlConfiguration(); config.loadFromString(yaml);
         var transport = new HttpTransport(settings);
-        Providers.JsonFetch fetch = url -> Remote.jsonValue(url, settings, transport);
+        Providers.JsonFetch fetch = Providers.memoized(url -> Remote.jsonValue(url, settings, transport));
         Discovery.Lookup lookup = hash -> {
             try {
                 String project = fetch.get("https://api.modrinth.com/v2/version_file/" + hash + "?algorithm=sha512").getAsJsonObject().get("project_id").getAsString();
@@ -27,7 +27,7 @@ final class UpdateCheckService {
         Map<String, Result> checked = new LinkedHashMap<>(); Map<String, Count> counts = new LinkedHashMap<>();
         for (var source : resolution.sources()) {
             if (Thread.currentThread().isInterrupted()) throw new java.io.InterruptedIOException("Check cancelled");
-            Result result = checkSource(source, fetch, url -> SourcePage.read(url, settings, transport), inventory.jars());
+            Result result = checkSource(source, fetch, url -> SourcePage.read(url, settings, transport), inventory.jars(), settings.debug());
             checked.put(source.name().toLowerCase(Locale.ROOT), result);
             Count previous = counts.getOrDefault(source.type(), new Count(0, 0));
             counts.put(source.type(), new Count(previous.success() + (result.error() == null ? 1 : 0), previous.failure() + (result.error() != null ? 1 : 0)));
@@ -41,12 +41,19 @@ final class UpdateCheckService {
         return checkSource(source, fetch, pages, List.of());
     }
     static Result checkSource(Remote.Source source, Providers.JsonFetch fetch, SourcePage.Fetch pages, List<Discovery.Jar> jars) {
+        return checkSource(source, fetch, pages, jars, false);
+    }
+    private static Result checkSource(Remote.Source source, Providers.JsonFetch fetch, SourcePage.Fetch pages, List<Discovery.Jar> jars, boolean debug) {
         try {
             var release = source.type().equals("web") ? SourcePage.latest(source, pages, fetch) : Providers.latest(source, fetch);
             var status = SourcePage.UNKNOWN_VERSION.equals(release.version()) ? Versions.Status.UNKNOWN : Versions.compare(source.installed(), release.version());
             if (status != Versions.Status.CURRENT && InstalledArtifact.matches(source, release, jars)) status = Versions.Status.CURRENT;
             return new Result(source, release, status, null);
-        } catch (Exception e) { return new Result(source, null, null, Failure.classify(e).describe(source.type())); }
+        } catch (Exception e) {
+            if (debug) java.util.logging.Logger.getLogger("PluginUpdateWatch").log(java.util.logging.Level.INFO,
+                    "[DEBUG] Provider check failed for " + source.name(), e);
+            return new Result(source, null, null, Failure.classify(e).describe(source.type()));
+        }
     }
     static String message(Exception e) { return Failure.classify(e).describe(null); }
 }

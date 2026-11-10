@@ -33,7 +33,7 @@ final class ConsoleReport {
         if (!release.hasChecksum() && release.download() != null) line += ". Help: " + Troubleshooting.link("checksums");
         else if (release.compatibilityWarning() != null) line += ". Help: " + Troubleshooting.link("compatibility-labels");
         else if (release.type().warning && release.type() != ReleaseType.UNKNOWN) line += ". Help: " + Troubleshooting.link("prereleases");
-        return line;
+        return (warnings.isEmpty() ? "[INFO] " : "[WARNING] ") + line;
     }
     static String summary(long updates, long untracked, long failures, long uncertain) {
         List<String> counts = new ArrayList<>();

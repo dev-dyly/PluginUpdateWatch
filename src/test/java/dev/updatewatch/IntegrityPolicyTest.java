@@ -38,7 +38,8 @@ class IntegrityPolicyTest {
         for (String provider : new String[]{"github", "spigot", "modrinth"}) {
             var exception = assertThrows(Failure.Problem.class, () -> DownloadManager.download(source(provider), new Remote.Release("2.0", "url", "page"), temp, Settings.defaults(), true,
                     (url, seconds) -> { fail("Missing integrity must block before connecting"); return null; }));
-            assertEquals(Failure.Kind.INVALID_ARTIFACT, Failure.classify(exception).kind());
+            assertEquals(Failure.Kind.CHECKSUM_MISSING, Failure.classify(exception).kind());
+            assertTrue(Failure.classify(exception).describe(provider).startsWith("[WARNING] CHECKSUM_MISSING"));
         }
     }
     @Test void githubSha256AndModrinthSha512AreBothAcceptedUnderStrictPolicy() throws Exception {
@@ -46,7 +47,7 @@ class IntegrityPolicyTest {
         var github = new Remote.Release("2.0", "url", "page", null, digest(bytes, "SHA-256"));
         var modrinth = new Remote.Release("2.0", "url", "page", digest(bytes, "SHA-512"));
         for (var release : new Remote.Release[]{github, modrinth}) {
-            Path saved = DownloadManager.download(source("github"), release, temp, Settings.defaults(), true, (u, seconds) -> new ByteArrayInputStream(bytes));
+            Path saved = DownloadManager.download(source("github"), release, temp.resolve(release.sha512() == null ? "github" : "modrinth"), Settings.defaults(), true, (u, seconds) -> new ByteArrayInputStream(bytes));
             assertArrayEquals(bytes, Files.readAllBytes(saved));
         }
     }

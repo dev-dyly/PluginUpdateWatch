@@ -2,6 +2,12 @@ package dev.updatewatch;
 
 /** Console reports contain actionable results; player reports retain the full inventory. */
 final class ReportVisibility {
+    static boolean newUpdates(java.util.Map<String, UpdateCheckService.Result> before,
+                              java.util.Map<String, UpdateCheckService.Result> after) {
+        // Provider failures or missing-source notes must not re-notify admins about an unchanged update.
+        return after.entrySet().stream().anyMatch(entry -> confirmedUpdate(entry.getValue())
+                && !entry.getValue().equals(before.get(entry.getKey())));
+    }
     static boolean confirmedUpdate(UpdateCheckService.Result result) {
         return result.error() == null && result.status() == Versions.Status.UPDATE;
     }

@@ -13,7 +13,7 @@ import org.bukkit.configuration.InvalidConfigurationException;
 record Failure(Failure.Kind kind, String detail, long retryAfterSeconds) {
     enum Kind {
         NETWORK, RATE_LIMIT, PROVIDER_DENIED, PROVIDER_ERROR, INVALID_CONFIG,
-        INVALID_RESPONSE, INVALID_ARTIFACT, NO_COMPATIBLE_RELEASE, ALREADY_INSTALLED, NO_NEWER_ARTIFACT, IO, CANCELLED, UNEXPECTED
+        INVALID_RESPONSE, INVALID_ARTIFACT, CHECKSUM_MISSING, NO_COMPATIBLE_RELEASE, ALREADY_INSTALLED, ALREADY_DOWNLOADED, NO_NEWER_ARTIFACT, IO, CANCELLED, UNEXPECTED
     }
 
     /** Call sites supply a controlled description, never a remote response body or URL. */
@@ -33,6 +33,11 @@ record Failure(Failure.Kind kind, String detail, long retryAfterSeconds) {
         List<Throwable> causes = new ArrayList<>();
         Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
         for (Throwable cause = thrown; cause != null && seen.add(cause); cause = cause.getCause()) causes.add(cause);
+        for (Throwable cause : causes) {
+            if (cause instanceof InterruptedException || cause instanceof java.util.concurrent.RejectedExecutionException
+                    || cause instanceof InterruptedIOException && !(cause instanceof SocketTimeoutException))
+                return new Failure(Kind.CANCELLED, "Operation was cancelled; review the downloads folder before retrying", 0);
+        }
         // Explicit classifications preserve the operation's context (e.g. malformed downloaded YAML).
         for (Throwable cause : causes) if (cause instanceof Problem p) return new Failure(p.kind, p.getMessage(), 0);
         for (Throwable cause : causes) if (cause instanceof Remote.HttpError http) {
@@ -75,16 +80,19 @@ record Failure(Failure.Kind kind, String detail, long retryAfterSeconds) {
             case CANCELLED -> "CANCELLED";
             case UNEXPECTED -> "INTERNAL_ERROR";
             case ALREADY_INSTALLED -> "ALREADY_INSTALLED";
+            case ALREADY_DOWNLOADED -> "ALREADY_DOWNLOADED";
             case NO_NEWER_ARTIFACT -> "NO_UPDATE";
+            case CHECKSUM_MISSING -> "CHECKSUM_MISSING";
+            case NO_COMPATIBLE_RELEASE -> "NO_COMPATIBLE_RELEASE";
             default -> "PROVIDER_ERROR";
         };
-        String prefix = noUpdate() ? "[INFO]" : kind == Kind.NO_COMPATIBLE_RELEASE || kind == Kind.CANCELLED ? "[WARNING]" : "[ERROR]";
+        String prefix = noUpdate() ? "[INFO]" : kind == Kind.NO_COMPATIBLE_RELEASE || kind == Kind.CHECKSUM_MISSING || kind == Kind.CANCELLED ? "[WARNING]" : "[ERROR]";
         String source = providerName(provider);
         return prefix + " " + category + (source.isEmpty() ? "" : " | " + source) + ": " + safe(detail) + ". " + action()
                 + " Help: " + Troubleshooting.failure(kind);
     }
 
-    boolean noUpdate() { return kind == Kind.ALREADY_INSTALLED || kind == Kind.NO_NEWER_ARTIFACT; }
+    boolean noUpdate() { return kind == Kind.ALREADY_INSTALLED || kind == Kind.ALREADY_DOWNLOADED || kind == Kind.NO_NEWER_ARTIFACT; }
 
     private String action() {
         return switch (kind) {
@@ -95,8 +103,10 @@ record Failure(Failure.Kind kind, String detail, long retryAfterSeconds) {
                     : "Check the provider release page and source link; retry /pu check later if the provider is unavailable.";
             case INVALID_CONFIG -> "Correct the source/config entry in config.yml, then run /pu reload.";
             case INVALID_RESPONSE -> "Check the provider release page; retry /pu check later or report a repeated malformed response.";
+            case CHECKSUM_MISSING -> "Use the release page for manual downloading, or review downloads.require-checksum before /pu reload.";
             case INVALID_ARTIFACT -> "Download was rejected. Check the publisher's release and checksum before trying again.";
             case NO_COMPATIBLE_RELEASE -> "Check the source link and supported Minecraft versions on the release page; update status is unknown.";
+            case ALREADY_DOWNLOADED -> "Review the existing downloaded file for manual installation.";
             case ALREADY_INSTALLED -> "Keep the installed plugin. A different release label alone does not make this file an update.";
             case NO_NEWER_ARTIFACT -> "Keep the installed plugin. Review the selected source or release channel before downloading again.";
             case IO -> "Check disk space and server file permissions, then retry the operation.";

@@ -2,15 +2,16 @@ package dev.updatewatch;
 
 /** Stable wiki anchors shared by console messages and detailed error output. */
 final class Troubleshooting {
-    static final String PAGE = "https://dylantanderson92-lang.github.io/PluginUpdateWatch/troubleshooting/";
+    static final String PAGE = "https://dev-dyly.github.io/PluginUpdateWatch/troubleshooting/";
     static String link(String topic) { return PAGE + "#" + topic; }
     static String failure(Failure.Kind kind) {
         return link(switch (kind) {
             case NETWORK, CANCELLED -> "network-errors";
             case RATE_LIMIT -> "rate-limits";
             case INVALID_CONFIG -> "config-errors";
+            case CHECKSUM_MISSING -> "checksums";
             case INVALID_ARTIFACT -> "invalid-downloads";
-            case ALREADY_INSTALLED, NO_NEWER_ARTIFACT -> "already-installed";
+            case ALREADY_DOWNLOADED, ALREADY_INSTALLED, NO_NEWER_ARTIFACT -> "already-installed";
             case IO -> "file-errors";
             case NO_COMPATIBLE_RELEASE -> "compatibility-labels";
             default -> "provider-errors";

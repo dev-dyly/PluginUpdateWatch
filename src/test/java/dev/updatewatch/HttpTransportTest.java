@@ -106,4 +106,12 @@ class HttpTransportTest {
         var transport = new HttpTransport(Settings.defaults(), uri -> { count.incrementAndGet(); return response; }, millis -> fail());
         assertEquals(404, assertThrows(Remote.HttpError.class, () -> transport.open("https://api.github.com/test", 30)).code); assertEquals(1, count.get());
     }
+    @Test void requestsIdentifyTheCurrentBuildAndRepository() throws Exception {
+        var response = new Response(200, Map.of());
+        var transport = new HttpTransport(Settings.defaults(), uri -> response, millis -> fail());
+        transport.open("https://api.github.com/test", 30).close();
+        assertEquals(HttpTransport.USER_AGENT, response.getRequestProperty("User-Agent"));
+        assertFalse(response.getRequestProperty("User-Agent").contains("1.4.0-SNAPSHOT"));
+        assertTrue(response.getRequestProperty("User-Agent").contains("dev-dyly/PluginUpdateWatch"));
+    }
 }

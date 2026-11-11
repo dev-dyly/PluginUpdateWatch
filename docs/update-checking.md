@@ -49,3 +49,11 @@ check-interval-minutes: 360
 ```
 
 The minimum configurable interval is 15 minutes.
+
+## Console logging and diagnostics
+
+Scheduled checks print new or changed issues and one scan summary. Unchanged source/configuration warnings and provider failures remain in `/pu list` and `/pu list all`; summary counts keep unresolved issues visible. Resolved issues and later recurrences are reported. Manual reports always show the current requested details. An unrelated failure no longer repeats administrator notifications for an unchanged update.
+
+Local console output uses the plugin logger once. Player and RCON download events receive a response and one server audit entry; RCON is a separate output channel. INFO covers successful operations and summaries, WARNING covers unconfirmed versions, missing checksums and incomplete sources, and ERROR (Bukkit SEVERE) covers operational failures. Set `debug: true` and `/pu reload` for `[DEBUG]` timings and exception diagnostics. Checksum mismatches and invalid archives always remain errors.
+
+Identical JSON request URLs share results only within one check (including discovery). A later check fetches fresh metadata; neither successful nor failed metadata responses are retained across scans. Existing bounded retries, timeouts and per-scan provider cooldowns still apply.

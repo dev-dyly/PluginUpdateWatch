@@ -7,6 +7,19 @@ import java.util.regex.Pattern;
 
 final class Providers {
     interface JsonFetch { JsonElement get(String url) throws IOException; }
+    /** Scope to one scan; never reuse release metadata across checks or configuration reloads. */
+    static JsonFetch memoized(JsonFetch fetch) {
+        Map<String, JsonElement> values = new HashMap<>();
+        Map<String, IOException> failures = new HashMap<>();
+        return url -> {
+            if (failures.containsKey(url)) throw failures.get(url);
+            if (!values.containsKey(url)) {
+                try { values.put(url, fetch.get(url)); }
+                catch (IOException e) { failures.put(url, e); throw e; }
+            }
+            return values.get(url).deepCopy();
+        };
+    }
     static Remote.Release latest(Remote.Source s, JsonFetch fetch) throws IOException {
         try { validate(s); }
         catch (RuntimeException e) { throw Failure.problem(Failure.Kind.INVALID_CONFIG, "Invalid provider, source ID or asset pattern", e); }

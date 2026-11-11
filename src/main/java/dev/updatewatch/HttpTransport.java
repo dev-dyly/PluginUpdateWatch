@@ -10,6 +10,15 @@ import java.util.*;
 final class HttpTransport {
     /** Default total attempts, including the first request. */
     static final int MAX_RETRIES = 3;
+    static final String USER_AGENT = "PluginUpdateWatch/" + buildVersion() + " (+https://github.com/dev-dyly/PluginUpdateWatch)";
+    private static String buildVersion() {
+        var properties = new Properties();
+        try (var in = HttpTransport.class.getResourceAsStream("/build.properties")) {
+            if (in != null) properties.load(in);
+        } catch (IOException ignored) { /* An unpackaged development build still identifies the client. */ }
+        String version = properties.getProperty("version", "dev");
+        return version.matches("[A-Za-z0-9.+_-]+") ? version : "dev";
+    }
     private static final long MAX_INLINE_WAIT_MILLIS = 4000;
     interface Connector { HttpURLConnection connect(URI uri) throws IOException; }
     interface Sleeper { void sleep(long millis) throws InterruptedException; }
@@ -135,7 +144,7 @@ final class HttpTransport {
                 c.setInstanceFollowRedirects(false);
                 c.setConnectTimeout(Math.min(settings.connectMillis(), remaining(deadline)));
                 c.setReadTimeout(Math.min(settings.readMillis(), remaining(deadline)));
-                c.setRequestProperty("User-Agent", "PluginUpdateWatch/1.4.0-SNAPSHOT (+https://github.com/dylantanderson92-lang/PluginUpdateWatch)");
+                c.setRequestProperty("User-Agent", USER_AGENT);
                 int status = c.getResponseCode();
                 remaining(deadline);
                 if (Set.of(301, 302, 303, 307, 308).contains(status)) {

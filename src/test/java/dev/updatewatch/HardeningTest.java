@@ -99,4 +99,26 @@ class HardeningTest {
         try (var out = new JarOutputStream(Files.newOutputStream(path))) { out.putNextEntry(new JarEntry("plugin.yml")); out.write("name: Example\n".getBytes()); out.closeEntry(); }
         assertTrue(Discovery.inventory(temp).isEmpty());
     }
+    @Test void interruptionDuringDownloadDiscardsTemporaryFileAndDoesNotSaveArchive() throws Exception {
+        var source = new Remote.Source("Example", "1", "web", "url", ".*", "26.3");
+        var release = new Remote.Release("2", "url", "page");
+        try {
+            var error = assertThrows(IOException.class, () -> DownloadManager.download(source, release, temp, Settings.defaults(), false,
+                    (url, seconds) -> new java.io.ByteArrayInputStream(new byte[16]) {
+                        @Override public int read(byte[] b, int off, int len) {
+                            Thread.currentThread().interrupt(); return super.read(b, off, len);
+                        }
+                    }));
+            assertEquals(Failure.Kind.CANCELLED, Failure.classify(error).kind());
+        } finally { Thread.interrupted(); }
+        try (var files = Files.list(temp)) { assertEquals(0, files.count()); }
+    }
+    @Test void invalidArchiveWithAllowedMissingChecksumStillCannotBeSaved() throws Exception {
+        var source = new Remote.Source("Example", "1", "web", "url", ".*", "26.3");
+        var release = new Remote.Release("2", "url", "page");
+        var error = assertThrows(IOException.class, () -> DownloadManager.download(source, release, temp, Settings.defaults(), false,
+                (url, seconds) -> new java.io.ByteArrayInputStream("<html>failure</html>".getBytes())));
+        assertEquals(Failure.Kind.INVALID_ARTIFACT, Failure.classify(error).kind());
+        try (var files = Files.list(temp)) { assertEquals(0, files.count()); }
+    }
 }

@@ -80,7 +80,7 @@ final class Remote {
     }
     static void verifyHash(Path path, String expected, String algorithm, boolean required) throws Exception {
         if (expected == null) {
-            if (required) throw Failure.problem(Failure.Kind.INVALID_ARTIFACT, "Required provider checksum is missing; no download was accepted");
+            if (required) throw Failure.problem(Failure.Kind.CHECKSUM_MISSING, "Required provider checksum is missing; no download was accepted");
             return;
         }
         var digest = MessageDigest.getInstance(algorithm);

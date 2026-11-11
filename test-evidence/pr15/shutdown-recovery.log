@@ -1,0 +1,7 @@
+Before fix: graceful shutdown accounted for cancellations but left .download-7300461657494971338.tmp (2048 bytes).
+[07:24:11] [Server thread/INFO]: [PluginUpdateWatch] [INFO] downloadall complete: 3/3 processed, 0 saved, 0 already saved/installed/not newer, 0 failed, 3 cancellation(s) requested. Review plugins/PluginUpdateWatch/downloads/ before installing.
+[07:24:22] [Server thread/INFO]: [PluginUpdateWatch] Disabling PluginUpdateWatch v1.5.0
+[07:24:22] [Server thread/INFO]: [PluginUpdateWatch] [INFO] downloadall complete: 3/3 processed, 0 saved, 0 already saved/installed/not newer, 0 failed, 3 cancellation(s) requested. Review plugins/PluginUpdateWatch/downloads/ before installing.
+
+After fix: next real Paper startup recovered that exact residual file; saved JAR and unrelated tmp retained.
+[07:26:43] [PluginUpdateWatch-IO/INFO]: [PluginUpdateWatch] Recovered 1 incomplete download temporary file(s) from a previous shutdown; saved JARs were retained.

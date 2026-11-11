@@ -12,6 +12,7 @@ final class BulkDownloadPlan {
                      Set<String> running) {
         int confirmed = 0, manual = 0, blocked = 0, active = 0;
         List<UpdateCheckService.Result> ready = new ArrayList<>();
+        Set<String> selected = new HashSet<>(running);
         for (var result : results) {
             if (!ReportVisibility.confirmedUpdate(result)) continue;
             confirmed++;
@@ -20,7 +21,7 @@ final class BulkDownloadPlan {
                 manual++;
             } else if (checksumRequired.test(result) && !release.hasChecksum()) {
                 blocked++;
-            } else if (running.contains(result.source().name().toLowerCase(Locale.ROOT))) {
+            } else if (!selected.add(result.source().name().toLowerCase(Locale.ROOT))) {
                 active++;
             } else {
                 ready.add(result);

@@ -4,7 +4,7 @@ Detect installed Paper plugins, find update sources, notify admins, and download
 
 **PluginUpdateWatch 1.5.1 Stable** is a maintenance release for reliable bulk downloads, safe cached results and clearer console reporting. It includes the fixes and live Paper verification from PR #15; commands, permissions and configuration remain compatible.
 
-[Version 1.5.1 release assets](https://github.com/dev-dyly/PluginUpdateWatch/releases/tag/v1.5.1) contain `PluginUpdateWatch-1.5.1.jar` and SHA-256 checksums once the tag-triggered release workflow completes. During release preparation, use [the latest published release](https://github.com/dev-dyly/PluginUpdateWatch/releases/latest). See [release notes](RELEASE-NOTES.md) and the [release procedure](docs/releasing.md).
+[Version 1.5.1 release assets](https://github.com/dev-dyly/PluginUpdateWatch/releases/tag/v1.5.1) contain the verified `PluginUpdateWatch-1.5.1.jar` and SHA-256 checksums. See [release notes](RELEASE-NOTES.md), the [publication report](RELEASE-REPORT-1.5.1.md) and the [release procedure](docs/releasing.md).
 
 ## Install or upgrade
 
@@ -174,7 +174,7 @@ Targets Paper **1.21.11â€“26.3**, using Java 21 bytecode and no server inte
 
 Existing jar/source and legacy `plugins:` entries remain valid without migration. The deliberate safety change is that an **omitted** checksum setting now requires checksums; administrators wanting the earlier behavior should explicitly set `downloads.require-checksum: false`.
 
-Build with JDK 21+ and Maven 3.9+: `mvn clean verify`. The installable local artifact is `target/PluginUpdateWatch-1.5.0.jar`. Gson and bStats are bundled and relocated; do not install the `original-` JAR.
+Build with JDK 21+ and Maven 3.9+: `mvn clean verify`. The installable local artifact is `target/PluginUpdateWatch-1.5.1.jar`. Gson and bStats are bundled and relocated; do not install the `original-` JAR.
 
 Pull requests and main pushes build/test on Java 21 and 25. Actions stores the Java 21 JAR/checksum as the `plugin-java-21` artifact for 14 days, including development builds on main. To prepare a release, update the version in `pom.xml` and `.github/release-version`, then push or dispatch the release workflow.
 

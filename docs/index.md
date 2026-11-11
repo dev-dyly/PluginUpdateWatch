@@ -15,7 +15,7 @@ Supported update sources:
 
 [Download PluginUpdateWatch](https://github.com/dev-dyly/PluginUpdateWatch/releases/latest){ .md-button .md-button--primary }
 
-[Version 1.5.1 assets](https://github.com/dev-dyly/PluginUpdateWatch/releases/tag/v1.5.1) become available after the tag-triggered release workflow completes. During preparation, the latest-release button above continues to open the last published release.
+[Version 1.5.1 assets](https://github.com/dev-dyly/PluginUpdateWatch/releases/tag/v1.5.1) are published with the verified JAR and SHA-256 checksums. The latest-release button above opens the current stable release.
 
 !!! tip "1.5.1 — Reliable downloads and clearer reporting"
     Run `/pu check` followed by `/pu downloadall` to queue eligible updates. Cancellation accounting, stale-config protection, duplicate avoidance and interrupted-transfer recovery are improved. Manual-only and checksum-blocked items are reported and skipped. Files are saved for review, **not installed automatically**. See the [DownloadAll guide](downloads.md#download-all-confirmed-updates).

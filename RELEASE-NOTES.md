@@ -1,3 +1,28 @@
+# PluginUpdateWatch 1.5.1
+
+**Stable maintenance release — download reliability and clearer logging**
+
+Version 1.5.1 includes the reliability and security fixes reviewed and live-tested in [PR #15](https://github.com/dev-dyly/PluginUpdateWatch/pull/15). Existing commands, permissions and configuration remain compatible; no migration is required.
+
+- **Reliable bulk downloads:** Account for queued, completed, rejected and cancelled downloads exactly once. Reload and shutdown request cancellation without waiting on network I/O on the server thread; one failed download does not stop the remaining queue.
+- **Safer cached results:** Block downloads after failed checks or reloads, require a fresh successful check after configuration reload, and validate the configuration snapshot before each queued transfer connects.
+- **Duplicate and filename protection:** Reuse an already saved, validated artifact when its publisher checksum matches. Detect identical checksumless files after validation and protect downloads belonging to another plugin. An already saved update does not mark the installed plugin current.
+- **Interrupted-transfer recovery:** Recover reserved partial-download temporary files on the next startup if shutdown finishes before the interrupted worker can clean up. Saved JARs and unrelated files are retained.
+- **Clearer reporting:** Consolidate download cautions, report changed scan issues with summary counts, announce resolved or recurring problems, and avoid repeating administrator notifications for unchanged updates. Console messages use appropriate severity; RCON receives command acknowledgements while delayed results remain available in console and later reports.
+- **Accurate failures and diagnostics:** Missing required checksums remain blocked with a warning. Invalid archives, checksum mismatches and operational failures remain errors. Distinguish cancellation from network timeouts and retain detailed diagnostics when debugging is enabled.
+- **Provider requests:** Reuse identical JSON requests within one check only, fetch fresh metadata on later checks, and identify the actual plugin version in HTTP requests.
+
+**Security and installation:** HTTPS restrictions, checksum enforcement, file-size limits, archive and plugin identity validation, freshness checks and filename protections are preserved. Downloads remain in `plugins/PluginUpdateWatch/downloads/` for manual review and installation; installed plugins are never replaced automatically.
+
+**Compatibility:** Targets Paper 1.21.11–26.3 with Java 21 bytecode. Use the Java runtime required by your Paper build; Paper 26.3 testing used Java 25. No support claim is made for standalone Spigot or Folia.
+
+**Validation:** PR #15 passed actual isolated Paper 26.3 build 246 testing, including native HTTPS downloads and separately identified controlled-provider failure cases. Authenticated-player testing was not performed. The v1.5.1 release candidate is verified by Maven on Java 21 and 25, including the final shaded JAR. See the [live test report](https://github.com/dev-dyly/PluginUpdateWatch/blob/main/LIVE-TEST-REPORT.md) for the exact artifacts and scope of the earlier live runs.
+
+**Upgrade:** After the release assets are available, download `PluginUpdateWatch-1.5.1.jar`, stop the server, remove the previous PluginUpdateWatch JAR, add the new JAR, retain the existing configuration folder, and restart. Review downloaded plugin updates separately before installing them.
+
+
+---
+
 # PluginUpdateWatch 1.5.0
 
 **Stable release — Bulk Update Downloads**

@@ -11,19 +11,19 @@ Supported update sources:
 
 ## Current version
 
-**PluginUpdateWatch 1.5.0**
+**PluginUpdateWatch 1.5.1 Stable**
 
 [Download PluginUpdateWatch](https://github.com/dev-dyly/PluginUpdateWatch/releases/latest){ .md-button .md-button--primary }
 
-[Download the 1.5.0 JAR](https://github.com/dev-dyly/PluginUpdateWatch/releases/download/v1.5.0/PluginUpdateWatch-1.5.0.jar) or view the latest release above.
+[Version 1.5.1 assets](https://github.com/dev-dyly/PluginUpdateWatch/releases/tag/v1.5.1) become available after the tag-triggered release workflow completes. During preparation, the latest-release button above continues to open the last published release.
 
-!!! tip "New in v1.5.0 — Download all confirmed updates"
-    Run `/pu check` followed by `/pu downloadall` to queue eligible updates. Manual-only and checksum-blocked items are reported and skipped. Files are saved for review, **not installed automatically**. See the [DownloadAll guide](downloads.md#download-all-confirmed-updates).
+!!! tip "1.5.1 — Reliable downloads and clearer reporting"
+    Run `/pu check` followed by `/pu downloadall` to queue eligible updates. Cancellation accounting, stale-config protection, duplicate avoidance and interrupted-transfer recovery are improved. Manual-only and checksum-blocked items are reported and skipped. Files are saved for review, **not installed automatically**. See the [DownloadAll guide](downloads.md#download-all-confirmed-updates).
 
 ## Quick start
 
 1. Stop your Paper server.
-2. Place `PluginUpdateWatch-1.5.0.jar` in the server's `plugins` folder.
+2. Place `PluginUpdateWatch-1.5.1.jar` in the server's `plugins` folder.
 3. Start the server.
 4. Run `/pu list` as an operator.
 5. Use `/pu scan` to retry automatic source discovery at any time.

@@ -1,1 +1,0 @@
-- Initial automated release setup

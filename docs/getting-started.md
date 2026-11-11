@@ -62,7 +62,7 @@ For a single plugin:
 /pu download <plugin>
 ```
 
-To download **all confirmed, eligible updates** in v1.5.0:
+To download **all confirmed, eligible updates** in v1.5.1 (introduced in v1.5.0):
 
 ```text
 /pu check

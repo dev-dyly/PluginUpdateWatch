@@ -1,112 +1,99 @@
 name: Release PluginUpdateWatch
-
 on:
   push:
-    tags:
-      - 'v*.*.*'
-
+    tags: ['v*.*.*']
 permissions:
-  contents: write
-  pages: write
-
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
-  release:
+  validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      loaders: ${{ steps.metadata.outputs.loaders }}
+      game-versions: ${{ steps.metadata.outputs.game-versions }}
     steps:
-      - name: Checkout Main Repository
-        uses: actions/checkout@v4
-
-      - name: Extract Version from Tag
-        id: vars
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
         with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: 'maven'
-
-      - name: Build JAR with Maven
-        run: mvn -B clean package
-
-      - name: Prepare Release Artifacts & Checksums
-        id: artifacts
+          fetch-depth: 0
+      - name: Require a stable tag from main with matching release metadata
+        id: metadata
+        shell: bash
         run: |
-          JAR_FILE=$(find target -maxdepth 1 -name "*.jar" ! -name "original-*.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" | head -n 1)
-          cp "$JAR_FILE" "target/PluginUpdateWatch.jar"
-          sha256sum "$JAR_FILE" | cut -d ' ' -f 1 > "${JAR_FILE}.sha256"
-          HASH=$(cat "${JAR_FILE}.sha256")
-          echo "sha256=$HASH" >> $GITHUB_OUTPUT
-          echo "jar_path=$JAR_FILE" >> $GITHUB_OUTPUT
-
-      - name: Create GitHub Release
+          set -euo pipefail
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          python3 .github/scripts/release.py validate "${GITHUB_REF_NAME#v}"
+  verify:
+    needs: validate
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+  publish:
+    needs: [validate, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+      MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID || secrets.MODRINTH_PROJECT_ID }}
+      RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: plugin-java-21
+          path: artifact
+      - name: Validate and prepare the exact tested JAR
+        id: artifacts
+        run: python3 .github/scripts/release.py prepare "$RELEASE_VERSION" --repository "$GITHUB_REPOSITORY"
+      - name: Check optional Modrinth account and project before publishing anything
+        id: modrinth
+        run: python3 .github/scripts/release.py modrinth-preflight "$RELEASE_VERSION"
+      - name: Add valid SpigotMC BBCode to the run summary
+        run: |
+          {
+            echo '### SpigotMC update (BBCode)'
+            echo '```bbcode'
+            cat release/SPIGOT-UPDATE.bbcode
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish the verified stable GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.vars.outputs.tag }}
-          name: PluginUpdateWatch ${{ steps.vars.outputs.version }}
-          body_path: RELEASE_NOTES.md
+          tag_name: ${{ github.ref_name }}
+          name: PluginUpdateWatch ${{ needs.validate.outputs.version }} Stable
+          body_path: release/RELEASE-NOTES.md
+          draft: false
+          prerelease: false
+          make_latest: 'true'
+          fail_on_unmatched_files: true
           files: |
-            ${{ steps.artifacts.outputs.jar_path }}
-            ${{ steps.artifacts.outputs.jar_path }}.sha256
-            target/PluginUpdateWatch.jar
-
-      - name: Update GitHub Pages Wiki (gh-pages)
-        run: |
-          if git ls-remote --exit-code --heads origin gh-pages; then
-            git fetch origin gh-pages
-            git worktree add gh-pages-site origin/gh-pages
-            cd gh-pages-site
-            git checkout gh-pages
-            find . -maxdepth 3 \( -name "*.html" -o -name "*.md" -o -name "*.js" -o -name "*.json" \) \
-              -exec sed -i "s/{{LATEST_VERSION}}/${{ steps.vars.outputs.version }}/g" {} +
-            find . -maxdepth 3 \( -name "*.html" -o -name "*.md" -o -name "*.js" -o -name "*.json" \) \
-              -exec sed -i "s/{{LATEST_SHA256}}/${{ steps.artifacts.outputs.sha256 }}/g" {} +
-            cat << EOF > latest-release.json
-          {
-            "version": "${{ steps.vars.outputs.version }}",
-            "tag": "${{ steps.vars.outputs.tag }}",
-            "sha256": "${{ steps.artifacts.outputs.sha256 }}",
-            "download_url": "https://github.com/${{ github.repository }}/releases/latest/download/PluginUpdateWatch.jar"
-          }
-          EOF
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add .
-            git diff-index --quiet HEAD || (git commit -m "Auto-update gh-pages wiki for v${{ steps.vars.outputs.version }}" && git push origin gh-pages)
-          fi
-
-      - name: Publish to Modrinth
-        if: ${{ env.MODRINTH_TOKEN != '' && env.MODRINTH_PROJECT_ID != '' }}
-        env:
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
+            release/PluginUpdateWatch-${{ needs.validate.outputs.version }}.jar
+            release/PluginUpdateWatch-${{ needs.validate.outputs.version }}.jar.sha256
+            release/PluginUpdateWatch.jar
+            release/PluginUpdateWatch.jar.sha256
+            release/SPIGOT-UPDATE.bbcode
+      - name: Publish the same verified JAR to Modrinth when configured
+        if: steps.modrinth.outputs.enabled == 'true'
         uses: Kir-Antipov/mc-publish@v3.3
         with:
-          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          files: ${{ steps.artifacts.outputs.jar_path }}
-          version: ${{ steps.vars.outputs.version }}
-          name: PluginUpdateWatch ${{ steps.vars.outputs.version }}
-          changelog-file: RELEASE_NOTES.md
-          loaders: |
-            paper
-            spigot
-            purpur
-          game-versions: |
-            1.21.11
-
-      - name: Generate SpigotMC BBCode Update Snippet
-        run: |
-          echo "### Copy-Paste SpigotMC Update (BBCode)" >> $GITHUB_STEP_SUMMARY
-          echo '```bbcode' >> $GITHUB_STEP_SUMMARY
-          echo "[B]PluginUpdateWatch ${{ steps.vars.outputs.version }}[/B]" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          sed -E 's/^- (.*)/[*] \1/' RELEASE_NOTES.md >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "[B]SHA-256 Checksum:[/B] [FONT=Courier New]${{ steps.artifacts.outputs.sha256 }}[/FONT]" >> $GITHUB_STEP_SUMMARY
-          echo "[URL='[https://github.com/$](https://github.com/$){{ github.repository }}/releases/tag/${{ steps.vars.outputs.tag }}']GitHub release and checksum[/URL] | [URL='[https://dev-dyly.github.io/PluginUpdateWatch/](https://dev-dyly.github.io/PluginUpdateWatch/)']Documentation & Wiki[/URL]" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          modrinth-id: ${{ env.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ env.MODRINTH_TOKEN }}
+          files: release/PluginUpdateWatch-${{ needs.validate.outputs.version }}.jar
+          version: ${{ needs.validate.outputs.version }}
+          version-type: release
+          name: PluginUpdateWatch ${{ needs.validate.outputs.version }} Stable
+          changelog-file: release/RELEASE-NOTES.md
+          loaders: ${{ needs.validate.outputs.loaders }}
+          game-versions: ${{ needs.validate.outputs.game-versions }}
+          game-version-filter: none
+          java: |
+            21
+            25
+          fail-mode: fail

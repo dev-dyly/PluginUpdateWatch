@@ -2,11 +2,16 @@
 
 Detect installed Paper plugins, find update sources, notify admins, and download updates on request. Supports **Modrinth, Spigot, GitHub and explicit HTTPS web sources**.
 
-**Stable release: 1.5.0.** Adds `/pu downloadall` to queue confirmed plugin updates, with checksum protections and a skipped-download summary. Web sources, quiet console reports and prerelease selection remain supported.
+**PluginUpdateWatch 1.5.1 Stable** is a maintenance release for reliable bulk downloads, safe cached results and clearer console reporting. It includes the fixes and live Paper verification from PR #15; commands, permissions and configuration remain compatible.
 
-**[Download PluginUpdateWatch 1.5.0](https://github.com/dev-dyly/PluginUpdateWatch/releases/tag/v1.5.0)** â€” choose `PluginUpdateWatch-1.5.0.jar` under Assets. Source code ZIP/TAR downloads remain available from the GitHub release page.
+[Version 1.5.1 release assets](https://github.com/dev-dyly/PluginUpdateWatch/releases/tag/v1.5.1) contain `PluginUpdateWatch-1.5.1.jar` and SHA-256 checksums once the tag-triggered release workflow completes. During release preparation, use [the latest published release](https://github.com/dev-dyly/PluginUpdateWatch/releases/latest). See [release notes](RELEASE-NOTES.md) and the [release procedure](docs/releasing.md).
 
 ## Install or upgrade
+
+### 1.5.1
+
+Bulk download completion and cancellation are counted once, stale configuration cannot trigger a transfer, and identical saved artifacts are reused safely. Scheduled reports show changed issues plus summaries; important failures and checksum warnings remain visible. Partial transfer files left by shutdown are recovered on the next startup. No configuration migration or automatic installation is introduced.
+
 
 ### 1.5.0
 
@@ -21,7 +26,7 @@ Scans and cleanup saves add a blank line between plugin entries in `updates:` an
 ### Stable installation
 
 1. Stop the server.
-2. Put `PluginUpdateWatch-1.5.0.jar` into the server's `plugins` folder. Remove the older PluginUpdateWatch JAR if upgrading. Keep its existing configuration folder.
+2. Put `PluginUpdateWatch-1.5.1.jar` into the server's `plugins` folder. Remove the older PluginUpdateWatch JAR if upgrading. Keep its existing configuration folder.
 3. Start the server. A scan begins automatically after startup.
 4. Run `/pu list` as an operator to see updates or plugins needing a source link.
 

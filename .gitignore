@@ -7,3 +7,6 @@
 *.iml
 .DS_Store
 Thumbs.db
+
+# Python release-tooling caches
+__pycache__/

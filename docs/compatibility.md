@@ -14,6 +14,12 @@ api-version: '1.21.11'
 
 This is the **minimum API version**, not an upper compatibility limit.
 
+## 1.5.1 release scope
+
+The release retains Paper **1.21.11–26.3** and Java 21 bytecode. Release CI verifies Java 21 and Java 25 before publishing the exact tested Java 21 artifact. Modrinth metadata advertises only **Paper** and the currently registered targeted releases: **1.21.11, 26.1, 26.1.1, 26.1.2, 26.2 and 26.3**. This is the existing compatibility policy, not a claim that every listed build has been live-tested. Standalone Spigot, Folia and unverified loaders are not advertised.
+
+The PR #15 fixes were live-tested on Paper **26.3 build 246 / Java 25.0.4.1**, including real provider downloads and separate controlled-provider failure/cancellation cases. Authenticated-player testing and the full production plugin stack were not exercised. The v1.5.1 metadata bump is separately build-verified; see the release and live reports for artifact-specific scope.
+
 ## Java
 
 PluginUpdateWatch uses **Java 21 bytecode**.
@@ -71,7 +77,7 @@ This does not establish compatibility with:
 - future Paper builds
 - sustained production load
 
-The tested Paper 26.3 build is an alpha.
+Historical Paper 26.3 build 41 was an alpha; PR #15 was additionally live-tested on stable build 246.
 
 No support claim is made for:
 

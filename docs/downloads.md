@@ -12,7 +12,7 @@ A single-plugin download may also be offered for inspection if a newer version c
 
 ## Download all confirmed updates
 
-**New in v1.5.0:**
+**Available since v1.5.0; reliability fixes in v1.5.1:**
 
 ```text
 /pu scan

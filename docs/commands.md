@@ -9,7 +9,7 @@ All commands use `/pu`, which is an alias of `/pluginupdates`.
 | `/pu scan` | Scan installed JARs, discover sources, save config and check updates |
 | `/pu check` | Check already-known sources without retrying automatic discovery |
 | `/pu download <plugin>` | Download an available update |
-| `/pu downloadall` | Queue all confirmed, directly downloadable updates from the last successful check (v1.5.0) |
+| `/pu downloadall` | Queue all confirmed, directly downloadable updates from the last successful check (since v1.5.0) |
 | `/pu cleanup` | Preview config entries whose configured JAR files are missing |
 | `/pu cleanup confirm` | Back up the config and remove exactly the previewed missing-file entries |
 | `/pu stats` | Show the latest check duration, update count and provider success/failure counts |
@@ -39,7 +39,7 @@ pu check
 
 For `/pu download`, tab completion supplies plugin names when an available update can be downloaded. `/pu downloadall` is also available in subcommand completion.
 
-## Bulk downloads (v1.5.0)
+## Bulk downloads (v1.5.1)
 
 See the [full DownloadAll guide](downloads.md#download-all-confirmed-updates) for eligibility, skipped items, checksum policy and examples.
 
@@ -54,3 +54,5 @@ Console and RCON hide successful up-to-date plugin rows and intentionally disabl
 ## Compact console reports in the 1.4.1
 
 Default console/RCON reports show confirmed updates and actionable problems, with specific troubleshooting links. Unconfirmed versions are counted rather than printed individually; `/pu list all` retains full details. In-game reports remain complete. Download warnings are consolidated, and identical-file downloads mark the current cached result CURRENT until the next check.
+
+Version 1.5.1 preserves all commands and permissions. Downloads require a successful current check after reload; queued transfers recheck the configuration before connecting. RCON receives immediate acknowledgements; delayed results are logged to console and can be inspected with `/pu list` or `/pu stats`.

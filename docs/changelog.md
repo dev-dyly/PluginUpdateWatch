@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.5.1 Stable — Download reliability and logging fixes
+
+[Release notes](https://github.com/dev-dyly/PluginUpdateWatch/blob/main/RELEASE-NOTES.md) · [Release assets, once published](https://github.com/dev-dyly/PluginUpdateWatch/releases/tag/v1.5.1)
+
+- Account for bulk queue completion, rejection and cancellation exactly once; continue remaining jobs after a failed transfer.
+- Reject stale download configuration after edits, failed checks and reloads; validate each queued snapshot before connecting.
+- Avoid duplicate saved artifacts and protect output files belonging to other plugins.
+- Recover reserved partial-transfer files on startup while retaining saved JARs and unrelated files.
+- Consolidate warnings, report changed scan issues and recovery, and avoid unrelated repeat administrator notifications.
+- Preserve operational error severity, missing-checksum policy, cancellation classification and optional debug diagnostics.
+- Identify the actual HTTP client version and reuse identical JSON requests only within one check.
+- Preserve commands, permissions, configuration, validation, Java 21 bytecode and manual installation.
+- Release publishing verifies Java 21/25 tests and final JAR metadata, uses the exact verified artifact and generates valid SpigotMC BBCode.
+
+PR #15 was live-tested on isolated Paper 26.3 build 246 / Java 25. The v1.5.1 version bump is separately checked by automated builds; earlier live tests do not certify byte-for-byte testing of this new versioned artifact. See the [live report](https://github.com/dev-dyly/PluginUpdateWatch/blob/main/LIVE-TEST-REPORT.md) for limitations.
+
+
 ## 1.5.0 — Bulk update downloads
 
 [Download v1.5.0](https://github.com/dev-dyly/PluginUpdateWatch/releases/tag/v1.5.0) · [DownloadAll guide](downloads.md#download-all-confirmed-updates)

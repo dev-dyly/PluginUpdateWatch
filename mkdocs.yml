@@ -92,5 +92,6 @@ nav:
       - Compatibility: compatibility.md
       - Troubleshooting: troubleshooting.md
       - Changelog: changelog.md
+      - Release procedure: releasing.md
 
   - About: about.md

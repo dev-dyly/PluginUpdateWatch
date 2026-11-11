@@ -22,7 +22,13 @@ jobs:
           distribution: temurin
           java-version: ${{ matrix.java }}
           cache: maven
+      - name: Test release tooling and validate source metadata
+        run: |
+          python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+          python3 .github/scripts/release.py validate
       - run: mvn --batch-mode --no-transfer-progress clean verify
+      - name: Verify the final shaded JAR version, contents and descriptor
+        run: python3 .github/scripts/release.py verify-jar
       - name: Collect exact packaged artifact
         if: matrix.java == '21'
         run: |

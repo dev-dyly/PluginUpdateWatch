@@ -76,7 +76,7 @@ After approval, configure a suitably scoped Actions secret through the platform'
 
 [Public wiki/MkDocs](https://dev-dyly.github.io/PluginUpdateWatch/) is available. [Main documentation deployment](https://github.com/dev-dyly/PluginUpdateWatch/actions/runs/43044426358) succeeded. Home, changelog, installation, downloads, configuration, troubleshooting and compatibility pages returned HTTP 200. Current release pages identify 1.5.1; configuration and troubleshooting retain version-independent guidance. Downloadall documentation and historical release notes remain available.
 
-This report's documentation follow-up removes release-preparation wording from the README/wiki home and fixes a remaining README local-build filename from 1.5.0 to 1.5.1. It does not change the tagged release artifact. Public deployment of that follow-up occurs after its PR is merged.
+The [documentation/report follow-up, PR #17](https://github.com/dev-dyly/PluginUpdateWatch/pull/17), removes release-preparation wording from the README/wiki home and fixes a remaining README local-build filename from 1.5.0 to 1.5.1. It does not change the tagged release artifact. Its merge and documentation deployment are subject to the normal required checks; the original release documentation deployment above already succeeded.
 
 ## DylyCraft safety and installation procedure
 
@@ -94,5 +94,5 @@ For an operator-managed installation or later rollback:
 
 1. Complete the independent Spigot download checksum check described above.
 2. Await Modrinth moderation; address any actual feedback without duplicate submissions. Configure/validate future automatic publication only after approval and secure credentials are available.
-3. Merge the documentation/report follow-up through normal required checks, then let MkDocs deploy the small post-publication wording corrections. Keep the existing release tag unchanged.
+3. Track the documentation/report follow-up and its MkDocs deployment through the [PR #17 checks](https://github.com/dev-dyly/PluginUpdateWatch/pull/17/checks). Keep the existing release tag unchanged.
 4. Production runtime verification or restart remains an operator-controlled maintenance action.
